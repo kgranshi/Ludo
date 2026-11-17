@@ -158,7 +158,12 @@ If paymentEnabled is false, app shows “Coming soon”.
 • Board: each seat mic button (if has voice)
 • Text chat free
 • Daily login reward
-• Profile: fun (daily+permanent), coins, level, referral share link
+• Profile: fun (daily+permanent), coins, level, wins/games, referral share link
+• Profile photo upload (PNG/JPG/WEBP/GIF, maximum 150 KB) and display-name editing
+• Personal room: show profile, wins and equipped room decorations; visit another player's public room by username
+• Equip owned board skins, avatars, mic skins and room decorations
+• Board skin display: Classic, Gold, Nepal and Neon themes
+• Voice: room-scoped WebRTC, mic on/off, speaker mute and volume slider (TURN service may be required on restrictive networks)
 • Shop: soft cosmetics with coins; voice real-money if enabled
 • Marketplace: list item / buy with fun or coins
 • Gift voice time or items
