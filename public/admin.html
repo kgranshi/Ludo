@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ludo Admin</title>
+<style>
+body{font-family:system-ui;background:#0b1220;color:#eef2ff;margin:0;padding:16px;max-width:720px;margin-inline:auto}
+input,textarea,select,button{width:100%;padding:10px;margin:6px 0;border-radius:8px;border:1px solid #2a3b5c;background:#152038;color:#fff}
+button{background:#ffd166;color:#111;font-weight:800;border:0;cursor:pointer}
+.card{background:#152038;border:1px solid #2a3b5c;border-radius:12px;padding:12px;margin:10px 0}
+h1{font-size:20px}h2{font-size:15px;margin-top:18px}
+.msg{font-size:12px;color:#8fa0c4;white-space:pre-wrap}
+</style>
+</head>
+<body>
+<h1>Admin Panel</h1>
+<label>Admin secret</label>
+<input id="secret" type="password" placeholder="ADMIN_SECRET">
+<label>Save secret in this browser</label>
+<button id="saveSecretBtn" type="button">Save secret for this tab</button>
+
+<h2>Payment proofs</h2>
+<button onclick="loadProofs()">Refresh proofs</button>
+<div id="proofs"></div>
+
+<h2>Inbox</h2>
+<button onclick="loadInbox()">Refresh inbox</button>
+<div id="inbox"></div>
+
+<h2>Grant Voice</h2>
+<input id="gUser" placeholder="username">
+<input id="gDays" type="number" value="30" placeholder="days">
+<button onclick="grantVoice()">Grant voice days</button>
+
+<h2>Ban / Unban</h2>
+<input id="bUser" placeholder="username">
+<button onclick="ban(true)">Ban</button>
+<button onclick="ban(false)">Unban</button>
+
+<h2>Referral / Daily rewards (example JSON)</h2>
+<p class="msg">Paste into config box below and Save:</p>
+<pre class="msg">{
+  "dailyLoginFunTokens": 50,
+  "referralRewardFunTokens": 100,
+  "referralRewardVoiceMs": 864000000,
+  "paymentEnabled": false,
+  "paymentMethods": [{"id":"esewa","label":"eSewa","detail":"98xxxxxxxx","qrUrl":""}]
+}</pre>
+<h2>Shop config (JSON merge)</h2>
+<textarea id="cfg" rows="10" placeholder='{"paymentMethods":[{"id":"esewa","label":"eSewa","detail":"98..."}]}'></textarea>
+<button onclick="saveCfg()">Save config</button>
+<pre class="msg" id="out"></pre>
+
+<script>
+const secret = document.getElementById('secret');
+secret.value = sessionStorage.getItem('adm') || '';
+const out = document.getElementById('out');
+function toast(m){ out.textContent = m; }
+async function api(path, opts={}){
+  const headers = {'Content-Type':'application/json', ...(opts.headers||{}), 'X-Admin-Secret':secret.value};
+  const r = await fetch(path, {...opts, headers, cache:'no-store'});
+  const j = await r.json().catch(()=>({ok:false,error:'Invalid server response'}));
+  if(!r.ok || j.ok === false) toast(j.error || `Request failed (${r.status})`);
+  return j;
+}
+function el(tag, text, cls){const n=document.createElement(tag);if(text!==undefined)n.textContent=String(text);if(cls)n.className=cls;return n;}
+function saveSecret(){sessionStorage.setItem('adm',secret.value);toast('Secret saved for this tab only.');}
+async function loadProofs(){
+  const j=await api('/api/shop/proofs');
+  const box=document.getElementById('proofs');box.replaceChildren();
+  (j.proofs||[]).forEach(p=>{
+    const d=el('div',undefined,'card');
+    d.append(el('b',p.username),document.createTextNode(` ${p.packageType}/${p.packageId} Rs.${p.amount} · ${p.status}`),el('p',p.note||''));
+    if(p.status==='pending'){
+      const approve=el('button','Approve');
+      approve.onclick=async()=>{const r=await api('/api/shop/proof-action',{method:'POST',body:JSON.stringify({secret:secret.value,proofId:p.id,action:'approve'})});if(r.ok)loadProofs();};
+      const reject=el('button','Reject');reject.style.background='#8b3044';reject.style.color='#fff';
+      reject.onclick=async()=>{const r=await api('/api/shop/proof-action',{method:'POST',body:JSON.stringify({secret:secret.value,proofId:p.id,action:'reject'})});if(r.ok)loadProofs();};
+      d.append(approve,reject);
+    }
+    box.append(d);
+  });
+  if(!box.children.length)box.append(el('p','No payment proofs.','msg'));
+}
+async function loadInbox(){
+  const j=await api('/api/lobby/admin-inbox');
+  const box=document.getElementById('inbox');box.replaceChildren();
+  (j.messages||[]).forEach(m=>{const d=el('div',undefined,'card');d.append(el('b',m.from),document.createTextNode(` · ${m.type}`),el('p',m.text));box.append(d);});
+  if(!box.children.length)box.append(el('p','Inbox is empty.','msg'));
+}
+async function grantVoice(){
+  const u=document.getElementById('gUser').value.trim().toLowerCase();
+  const days=Number(document.getElementById('gDays').value)||30;
+  const j=await api('/api/user/'+encodeURIComponent(u)+'/admin-grant-voice',{method:'POST',body:JSON.stringify({secret:secret.value,days})});toast(JSON.stringify(j,null,2));
+}
+async function ban(v){
+  const u=document.getElementById('bUser').value.trim().toLowerCase();
+  const j=await api('/api/user/'+encodeURIComponent(u)+'/admin-ban',{method:'POST',body:JSON.stringify({secret:secret.value,banned:v})});toast(JSON.stringify(j,null,2));
+}
+async function saveCfg(){
+  let config={};try{config=JSON.parse(document.getElementById('cfg').value);}catch(e){toast('Invalid JSON');return;}
+  const j=await api('/api/shop/set',{method:'POST',body:JSON.stringify({secret:secret.value,config})});toast(JSON.stringify(j,null,2));
+}
+document.getElementById('saveSecretBtn').addEventListener('click',saveSecret);
+</script>
+</body>
+</html>
