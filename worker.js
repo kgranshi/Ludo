@@ -813,6 +813,8 @@ export class LudoRoom {
     const avatar = userJson.user.equippedAvatar || 'default';
     const avatarPhoto = userJson.user.avatarPhoto || '';
     const skin = userJson.user.equippedSkin || 'default';
+    const equippedMic = userJson.user.equippedMic || 'mic_default';
+    const roomDecorEquipped = userJson.user.roomDecorEquipped || [];
 
     let room = await this.ctx.storage.get('room');
     if (!room && !create) return new Response('Room not found', { status: 404 });
@@ -831,11 +833,11 @@ export class LudoRoom {
       if (room.players.length >= 4) return new Response('Room full', { status: 409 });
       if (room.stake > 0 && (userJson.user.funTokens || 0) < room.stake) return new Response('Not enough fun tokens', { status: 402 });
       const seat = [0, 1, 2, 3].find(i => !room.players.some(p => p.seat === i));
-      player = { username, name, seat, tokens: [-1, -1, -1, -1], voiceActive, avatar, avatarPhoto, skin, connected: true };
+      player = { username, name, seat, tokens: [-1, -1, -1, -1], voiceActive, avatar, avatarPhoto, skin, equippedMic, roomDecorEquipped, connected: true };
       room.players.push(player);
     } else {
       // reconnect
-      player.name = name; player.voiceActive = voiceActive; player.avatar = avatar; player.avatarPhoto = avatarPhoto; player.skin = skin; player.connected = true;
+      player.name = name; player.voiceActive = voiceActive; player.avatar = avatar; player.avatarPhoto = avatarPhoto; player.skin = skin; player.equippedMic = equippedMic; player.roomDecorEquipped = roomDecorEquipped; player.connected = true;
       if (room.disconnects?.[username]) delete room.disconnects[username];
     }
     await this.ctx.storage.put('room', room);
