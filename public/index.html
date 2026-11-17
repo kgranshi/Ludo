@@ -166,6 +166,7 @@ input,select,textarea{width:100%;padding:11px;border-radius:11px;border:1px soli
     <span class="pill" id="potPill">Pot 0</span>
     <button class="btn sm secondary" id="btnLeave">Leave</button>
   </div>
+  <div id="gameRoomDecor"></div>
   <div id="gameArea">
     <div id="board"></div>
   </div>
@@ -516,11 +517,16 @@ function render(){
   else{$('dice').textContent=s.dice?['','⚀','⚁','⚂','⚃','⚄','⚅'][s.dice]:'⚄';
     $('dice').classList.toggle('disabled',!(myTurn()&&!s.rolled&&!s.finished));}
   const bar=$('playersBar');bar.innerHTML='';
+  const roomDecor=$('gameRoomDecor');roomDecor.innerHTML='';
   ps.forEach((pl,pi)=>{
     const chip=document.createElement('div');
-    chip.className='chip'+(pl.username===auth.username?' me':'')+(s&&s.turn===pi&&!s.finished?' turn':'');
-    chip.textContent=(pl.avatarPhoto?'📷 ':'')+pl.name+(pl.voiceActive?' 🎤':'')+(pl.connected===false?' ⚠️':'');
+    chip.className='player-room-card'+(pl.username===auth.username?' me':'')+(s&&s.turn===pi&&!s.finished?' turn':'');
+    const photo=pl.avatarPhoto?'<img class="player-room-photo" src="'+pl.avatarPhoto+'">':'<span class="player-room-photo placeholder">👤</span>';
+    const icons={lamp:'💡',trophy:'🏆',sofa:'🛋️'};
+    const decor=(pl.roomDecorEquipped||[]).map(id=>'<span>'+ (icons[id]||'✨') +'</span>').join('');
+    chip.innerHTML=photo+'<div class="player-room-info"><b>'+esc(pl.name)+'</b><small>'+esc(pl.skin||'default')+'</small><div>'+decor+'</div></div><span>'+(pl.voiceActive?'🎙️':'🔇')+' '+esc(pl.equippedMic||'mic_default')+'</span>';
     bar.appendChild(chip);
+    if(decor){const d=document.createElement('span');d.textContent=decor.replace(/<[^>]*>/g,' ');roomDecor.appendChild(d);}
     const mic=$('seatMic'+pi);
     if(mic){
       if(pl.username===auth.username){
