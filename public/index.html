@@ -63,6 +63,15 @@ input,select,textarea{width:100%;padding:11px;border-radius:11px;border:1px soli
 #chatSend{border:0;background:#2a3b5c;color:#fff;border-radius:8px;padding:0 10px;font-weight:700;font-size:12px}
 .toast{position:fixed;left:50%;bottom:72px;transform:translateX(-50%);background:#1a2744;border:1px solid var(--line);padding:10px 12px;border-radius:10px;font-size:12px;z-index:50;display:none;max-width:90%;text-align:center}
 .coming{opacity:.6;font-style:italic}\n#roomPreview{min-height:150px;border:1px solid var(--line);border-radius:14px;padding:14px;background:radial-gradient(circle at 20% 15%,#6b4b25,#19233c 55%,#10182a);display:flex;gap:10px;flex-wrap:wrap;align-items:center}\n.room-item{background:#ffffff18;border:1px solid #ffffff35;border-radius:10px;padding:10px;font-size:12px}\n.avatar-photo{width:54px;height:54px;object-fit:cover;border-radius:50%;border:2px solid var(--gold);background:#243656}\n.brand{letter-spacing:.4px}\n#board.skin-gold{border-color:#e8bd55;box-shadow:0 0 0 3px #9a6b24,0 10px 30px #0008}\n#board.skin-gold .track{background:#fff8df}\n#board.skin-nepal{border-color:#dc3545;box-shadow:0 0 0 3px #1c8b54,0 10px 30px #0008}\n#board.skin-nepal .center{background:conic-gradient(#dc3545 0 25%,#1c8b54 0 50%,#f3c744 0 75%,#fff 0)}\n#board.skin-neon{border-color:#a855f7;box-shadow:0 0 0 3px #06b6d4,0 0 24px #8b5cf6}\n#speakerControls{display:flex;align-items:center;gap:8px;justify-content:center;margin-top:4px}\n#speakerVolume{width:100px}
+
+#gameRoomDecor{display:flex;justify-content:center;gap:10px;min-height:26px;padding:4px;flex-wrap:wrap;font-size:20px}
+#playersBar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:8px 0}
+.player-room-card{display:flex;align-items:center;gap:7px;min-width:0;padding:7px;border:1px solid #526078;border-radius:12px;background:linear-gradient(135deg,#202e46,#111b2d);color:#fff}
+.player-room-card.me{border-color:#f7c65b}.player-room-card.turn{outline:2px solid #f7c65b}
+.player-room-photo{width:40px;height:40px;object-fit:cover;border-radius:50%;flex:0 0 40px;border:2px solid #f7c65b}
+.player-room-photo.placeholder{display:grid;place-items:center;background:#34445e;font-size:21px}
+.player-room-info{min-width:0;flex:1}.player-room-info b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.player-room-info small{font-size:10px;opacity:.75}
+@media(max-width:420px){.player-room-card{padding:5px;gap:4px}.player-room-photo{width:32px;height:32px;flex-basis:32px}}
 </style>
 </head>
 <body>
