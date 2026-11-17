@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0b1220">
+<title>Ludo Live</title>
+<style>
+:root{--bg:#0b1220;--panel:#152038;--line:#2a3b5c;--gold:#ffd166;--txt:#eef2ff;--muted:#8fa0c4;--ok:#2dd4a8;--busy:#e85d6a;--blue:#3b82f6}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,sans-serif}
+body{background:radial-gradient(ellipse at 50% 0,#1a2744,#0b1220 55%)}
+#app{max-width:480px;margin:auto;height:100dvh;display:flex;flex-direction:column;padding:env(safe-area-inset-top) 10px env(safe-area-inset-bottom)}
+header{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:8px 0;flex-wrap:wrap}
+.brand{font-weight:900;font-size:16px}
+.pills{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.pill{font-size:10px;padding:3px 8px;border-radius:999px;background:#1a2744;border:1px solid var(--line)}
+.pill.on{border-color:var(--ok);color:var(--ok)}.pill.off{color:var(--muted)}
+.screen{display:none;flex:1;flex-direction:column;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch}
+.screen.active{display:flex}
+h1{font-size:18px;margin:4px 0}h2{font-size:14px;margin:12px 0 6px}
+.sub{color:var(--muted);font-size:12px;line-height:1.4;margin:0 0 8px}
+label{display:block;font-size:11px;color:#c5d0ef;margin:8px 0 4px;font-weight:600}
+input,select,textarea{width:100%;padding:11px;border-radius:11px;border:1px solid var(--line);background:#0f1a30;color:#fff;font-size:15px}
+.btn{width:100%;padding:12px;border:0;border-radius:11px;font-weight:800;font-size:14px;margin-top:8px;min-height:44px;cursor:pointer}
+.btn.primary{background:var(--gold);color:#1a1528}.btn.secondary{background:#243656;color:#fff}
+.btn.danger{background:#8b3044;color:#fff}.btn:disabled{opacity:.45}
+.btn.sm{width:auto;display:inline-block;padding:7px 11px;min-height:0;margin:4px 4px 0 0;font-size:12px}
+.nav{display:flex;gap:4px;margin:4px 0 8px}.nav .btn{margin:0;flex:1;padding:10px 6px;font-size:11px}
+.user-list{display:flex;flex-direction:column;gap:8px}
+.user-row{display:flex;align-items:center;gap:8px;padding:10px;background:var(--panel);border:1px solid var(--line);border-radius:12px}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+.dot.online{background:var(--blue);box-shadow:0 0 6px var(--blue)}.dot.busy{background:var(--busy);box-shadow:0 0 6px var(--busy)}
+.meta{flex:1;min-width:0}.name{font-weight:700;font-size:13px}.tag{font-size:10px;color:var(--muted)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;margin:8px 0}
+.stat{display:flex;gap:8px;flex-wrap:wrap}.stat span{background:#0f1a30;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12px}
+#gameArea{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;position:relative}
+#board{width:min(100%,calc(100dvh - 320px),380px);aspect-ratio:1;display:grid;grid-template-columns:repeat(15,1fr);grid-template-rows:repeat(15,1fr);background:#f3f0e6;border:3px solid #fff;border-radius:12px;position:relative;overflow:hidden;box-shadow:0 10px 30px #0008}
+.cell{border:.4px solid #e0dcd0;min-width:0;min-height:0}
+.track{background:#fff}.home.red{background:#f8b4c0}.home.green{background:#9eebcf}.home.yellow{background:#ffe6a0}.home.blue{background:#a8d8f5}
+.lane.red{background:#e84b6a}.lane.green{background:#0fb989}.lane.yellow{background:#e8b83a}.lane.blue{background:#2f95c9}
+.center{background:conic-gradient(#0fb989 0 25%,#e8b83a 0 50%,#2f95c9 0 75%,#e84b6a 0)}
+.base{position:absolute;width:40%;height:40%;padding:6%;display:grid;grid-template-columns:1fr 1fr;gap:6%;border-radius:8px;z-index:1}
+.base.red{top:0;left:0;background:#e84b6a}.base.green{top:0;right:0;background:#0fb989}
+.base.yellow{right:0;bottom:0;background:#c99a1e}.base.blue{left:0;bottom:0;background:#2f95c9}
+.slot{border:2px solid #fff;background:#fff;border-radius:50%}
+.piece{width:82%;height:82%;border:0;border-radius:50%;font-size:clamp(7px,1.8vw,11px);font-weight:900;color:#fff;z-index:3;padding:0}
+.piece.red{background:#c41e3a}.piece.green{background:#00875a}.piece.yellow{background:#b8860b;color:#1a1200}.piece.blue{background:#1565a0}
+.piece.pick{outline:3px solid #111;animation:pulse .6s infinite alternate}
+@keyframes pulse{to{transform:scale(1.12)}}
+.seatMic{position:absolute;z-index:5;width:36px;height:36px;border-radius:50%;border:2px solid #fff;font-size:14px;display:grid;place-items:center;background:#2a3558;color:#fff;padding:0}
+.seatMic.on{background:var(--busy)}.seatMic.locked{opacity:.45}
+.seatMic.s0{top:2%;left:2%}.seatMic.s1{top:2%;right:2%}.seatMic.s2{bottom:2%;right:2%}.seatMic.s3{bottom:2%;left:2%}
+#bottom{flex:none;padding:4px 0 6px}
+#playersBar{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-bottom:4px}
+.chip{font-size:10px;padding:2px 7px;border-radius:999px;background:#1a2744;border:1px solid var(--line)}
+.chip.me{border-color:var(--gold)}.chip.turn{box-shadow:0 0 0 2px var(--gold)}
+#controls{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:4px}
+#dice{width:64px;height:58px;border:2px solid #fff;border-radius:14px;background:linear-gradient(145deg,#fff,#e6e9f4);color:#12182c;font-size:36px;display:grid;place-items:center}
+#dice.disabled{opacity:.4;pointer-events:none}
+#chatBox{max-height:64px;overflow:auto;background:#0f1a30;border:1px solid var(--line);border-radius:8px;padding:4px 6px;font-size:11px;margin-bottom:4px}
+#chatRow{display:flex;gap:4px}#chatInput{flex:1;padding:8px;font-size:13px}
+#chatSend{border:0;background:#2a3b5c;color:#fff;border-radius:8px;padding:0 10px;font-weight:700;font-size:12px}
+.toast{position:fixed;left:50%;bottom:72px;transform:translateX(-50%);background:#1a2744;border:1px solid var(--line);padding:10px 12px;border-radius:10px;font-size:12px;z-index:50;display:none;max-width:90%;text-align:center}
+.coming{opacity:.6;font-style:italic}
+</style>
+</head>
+<body>
+<div id="app">
+<header>
+  <div class="brand">Ludo Live</div>
+  <div class="pills">
+    <span class="pill" id="balPill">Fun 0</span>
+    <span class="pill" id="voicePill">Voice Off</span>
+    <button class="pill" id="langBtn" type="button">ने</button>
+  </div>
+</header>
+
+<section id="sc-login" class="screen active">
+  <h1 id="tTitle">Login / Register</h1>
+  <p class="sub" id="tSub">Text chat free · Voice & cosmetics in-app · Soft tokens only</p>
+  <label>Username</label><input id="inUser" autocomplete="username">
+  <label>Password</label><input id="inPass" type="password" autocomplete="current-password">
+  <label>Display name</label><input id="inName" maxlength="18">
+  <label>Referral code</label><input id="inRef" maxlength="12" placeholder="optional">
+  <button class="btn primary" id="btnLogin">Login</button>
+  <button class="btn secondary" id="btnRegister">Create account</button>
+</section>
+
+<section id="sc-lobby" class="screen">
+  <div class="nav">
+    <button class="btn secondary" data-go="lobby">Players</button>
+    <button class="btn secondary" data-go="shop">Shop</button>
+    <button class="btn secondary" data-go="market">Market</button>
+    <button class="btn secondary" data-go="profile">Profile</button>
+  </div>
+  <div id="panel-lobby">
+    <h1>Online</h1>
+    <p class="sub">Blue online · Red busy · 🎤 has voice · Lv shown</p>
+    <div id="reqArea"></div>
+    <label>Stake (fun tokens)</label>
+    <select id="stakeSel"><option value="0">0 (fun only)</option><option value="10">10</option><option value="20" selected>20</option><option value="50">50</option><option value="100">100</option></select>
+    <div class="user-list" id="userList"></div>
+    <button class="btn primary" id="btnDaily">Daily login (+50 fun today)</button>
+    <button class="btn secondary" id="btnCreate">Create room</button>
+    <button class="btn secondary" id="btnJoin">Join code</button>
+    <button class="btn danger" id="btnLogout">Logout</button>
+  </div>
+  <div id="panel-shop" style="display:none">
+    <h1>Shop</h1>
+    <p class="sub">Cosmetics with coins · Voice with real money only if admin enabled</p>
+    <div id="shopSoft"></div>
+    <h2>Live Voice (real money)</h2>
+    <div id="shopVoice"></div>
+    <div id="payBox" class="card" style="display:none">
+      <div id="payDetail"></div>
+      <label>Note / TxID</label><input id="payNote">
+      <label>Proof image</label><input id="payProof" type="file" accept="image/*">
+      <button class="btn primary" id="btnSubmitPay">Submit proof</button>
+    </div>
+  </div>
+  <div id="panel-market" style="display:none">
+    <h1>Marketplace</h1>
+    <p class="sub">Trade skins / mics with fun tokens or coins. No real money.</p>
+    <div id="marketList"></div>
+    <h2>Sell your item</h2>
+    <label>Type</label>
+    <select id="sellType"><option value="skin">Skin</option><option value="mic">Mic</option><option value="avatar">Avatar</option></select>
+    <label>Item id you own</label><input id="sellId" placeholder="gold">
+    <label>Price fun</label><input id="sellFun" type="number" value="0">
+    <label>Price coins</label><input id="sellCoins" type="number" value="10">
+    <button class="btn secondary" id="btnListSell">List for sale</button>
+  </div>
+  <div id="panel-profile" style="display:none">
+    <h1>Profile</h1>
+    <div class="card" id="profCard"></div>
+    <button class="btn secondary" id="btnShareRef">Copy referral link</button>
+    <h2>Convert fun → coin</h2>
+    <p class="sub">100 permanent fun = 1 coin</p>
+    <button class="btn secondary" id="btnConvert">Convert 100 fun</button>
+    <h2>Gift voice hours</h2>
+    <input id="giftTo" placeholder="username">
+    <input id="giftHours" type="number" value="1" step="0.5" min="0.1">
+    <button class="btn secondary" id="btnGift">Send voice gift</button>
+    <h2>Equip</h2>
+    <div id="equipBox"></div>
+  </div>
+</section>
+
+<section id="sc-game" class="screen">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:6px">
+    <span class="pill" id="roomPill">Room</span>
+    <span class="pill" id="potPill">Pot 0</span>
+    <button class="btn sm secondary" id="btnLeave">Leave</button>
+  </div>
+  <div id="gameArea">
+    <div id="board"></div>
+  </div>
+  <div id="bottom">
+    <div id="playersBar"></div>
+    <div id="chatBox"></div>
+    <div id="chatRow"><input id="chatInput" maxlength="200" placeholder="Text chat (free)"><button id="chatSend">Send</button></div>
+    <div id="controls"><div id="dice" class="disabled">⚄</div></div>
+    <button class="btn primary" id="btnStart" style="display:none">Start / Rematch</button>
+    <button class="btn secondary" id="btnVote" style="display:none">Vote continue without DC</button>
+  </div>
+</section>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const $ = id => document.getElementById(id);
+let lang = localStorage.getItem('ludo_lang') || 'en';
+let auth = JSON.parse(localStorage.getItem('ludo_auth') || 'null');
+let shop = null, pendingBuy = null;
+let socket = null, roomId = null, roomData = null, mySeat = -1;
+let localStream = null, micOn = false;
+const peers = new Map();
+const ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+let hb = null, lobbyT = null;
+
+// ref from URL
+(() => {
+  const r = new URLSearchParams(location.search).get('ref');
+  if (r) { $('inRef').value = r; localStorage.setItem('ludo_ref', r); }
+  else if (localStorage.getItem('ludo_ref')) $('inRef').value = localStorage.getItem('ludo_ref');
+})();
+
+const PATHS=[[[6,1],[6,2],[6,3],[6,4],[6,5],[5,6],[4,6],[3,6],[2,6],[1,6],[0,6],[0,7],[0,8],[1,8],[2,8],[3,8],[4,8],[5,8],[6,9],[6,10],[6,11],[6,12],[6,13],[6,14],[7,14],[8,14],[8,13],[8,12],[8,11],[8,10],[8,9],[9,8],[10,8],[11,8],[12,8],[13,8],[14,8],[14,7],[14,6],[13,6],[12,6],[11,6],[10,6],[9,6],[8,5],[8,4],[8,3],[8,2],[8,1],[8,0],[7,0]],[[1,8],[2,8],[3,8],[4,8],[5,8],[6,9],[6,10],[6,11],[6,12],[6,13],[6,14],[7,14],[8,14],[8,13],[8,12],[8,11],[8,10],[8,9],[9,8],[10,8],[11,8],[12,8],[13,8],[14,8],[14,7],[14,6],[13,6],[12,6],[11,6],[10,6],[9,6],[8,5],[8,4],[8,3],[8,2],[8,1],[8,0],[7,0],[6,0],[6,1],[6,2],[6,3],[6,4],[6,5],[5,6],[4,6],[3,6],[2,6],[1,6],[0,6],[0,7]],[[8,13],[8,12],[8,11],[8,10],[8,9],[9,8],[10,8],[11,8],[12,8],[13,8],[14,8],[14,7],[14,6],[13,6],[12,6],[11,6],[10,6],[9,6],[8,5],[8,4],[8,3],[8,2],[8,1],[8,0],[7,0],[6,0],[6,1],[6,2],[6,3],[6,4],[6,5],[5,6],[4,6],[3,6],[2,6],[1,6],[0,6],[0,7],[0,8],[1,8],[2,8],[3,8],[4,8],[5,8],[6,9],[6,10],[6,11],[6,12],[6,13],[6,14],[7,14]],[[13,6],[12,6],[11,6],[10,6],[9,6],[8,5],[8,4],[8,3],[8,2],[8,1],[8,0],[7,0],[6,0],[6,1],[6,2],[6,3],[6,4],[6,5],[5,6],[4,6],[3,6],[2,6],[1,6],[0,6],[0,7],[0,8],[1,8],[2,8],[3,8],[4,8],[5,8],[6,9],[6,10],[6,11],[6,12],[6,13],[6,14],[7,14],[8,14],[8,13],[8,12],[8,11],[8,10],[8,9],[9,8],[10,8],[11,8],[12,8],[13,8],[14,8],[14,7]]];
+const HOME=[[[7,1],[7,2],[7,3],[7,4],[7,5],[7,6]],[[1,7],[2,7],[3,7],[4,7],[5,7],[6,7]],[[7,13],[7,12],[7,11],[7,10],[7,9],[7,8]],[[13,7],[12,7],[11,7],[10,7],[9,7],[8,7]]];
+const colors=['red','green','yellow','blue'];
+function coord(pi,pos){if(pos<0)return null;if(pos>=52)return HOME[pi][Math.min(pos-52,5)];return PATHS[pi][pos];}
+
+function toast(m){const e=$('toast');e.textContent=m;e.style.display='block';clearTimeout(e._t);e._t=setTimeout(()=>e.style.display='none',3000);}
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));$(id).classList.add('active');}
+function save(){localStorage.setItem('ludo_auth',JSON.stringify(auth));}
+function fmtMs(ms){if(ms<=0)return '0';const h=Math.floor(ms/3600000),m=Math.floor((ms%3600000)/60000);return h?h+'h '+m+'m':m+'m';}
+function updatePills(){
+  const u=auth?.user; if(!u)return;
+  const d=u.dailyFunTokens||0, p=u.funTokens||0;
+  $('balPill').textContent=`Fun ${p}+${d}d · C${u.coins||0} · Lv${u.level||1}`;
+  const on=u.voiceActive;
+  $('voicePill').textContent=on?('Voice '+fmtMs(u.voiceRemainingMs)):'Voice Off';
+  $('voicePill').className='pill '+(on?'on':'off');
+}
+async function api(path,opts={}){
+  const headers={'Content-Type':'application/json',...(opts.headers||{})};
+  if(auth?.token)headers.Authorization='Bearer '+auth.token;
+  const r=await fetch(path,{...opts,headers});
+  return r.json();
+}
+
+$('langBtn').onclick=()=>{lang=lang==='en'?'ne':'en';localStorage.setItem('ludo_lang',lang);$('langBtn').textContent=lang==='en'?'ने':'EN';
+  $('tTitle').textContent=lang==='en'?'Login / Register':'लगइन / दर्ता';
+  $('tSub').textContent=lang==='en'?'Text free · Voice & cosmetics':'च्याट फ्री · Voice र स्किन';
+};
+
+$('btnRegister').onclick=async()=>{
+  const username=$('inUser').value.trim().toLowerCase(), password=$('inPass').value;
+  const displayName=$('inName').value.trim()||username, referral=$('inRef').value.trim();
+  const j=await api('/api/user/'+encodeURIComponent(username)+'/register',{method:'POST',body:JSON.stringify({username,password,displayName,referral})});
+  if(!j.ok)return toast(j.error||'Failed');
+  auth={token:j.token,user:j.user,username};save();toast('Account created');enterLobby();
+};
+$('btnLogin').onclick=async()=>{
+  const username=$('inUser').value.trim().toLowerCase(), password=$('inPass').value;
+  const j=await api('/api/user/'+encodeURIComponent(username)+'/login',{method:'POST',body:JSON.stringify({username,password})});
+  if(!j.ok)return toast(j.error||'Failed');
+  auth={token:j.token,user:j.user,username};save();toast('Hi '+j.user.displayName);enterLobby();
+};
+$('btnLogout').onclick=()=>{stopTimers();auth=null;localStorage.removeItem('ludo_auth');show('sc-login');};
+
+async function enterLobby(){
+  show('sc-lobby');updatePills();await setStatus('online');startTimers();refreshLobby();loadShop();loadMarket();renderProfile();
+}
+async function setStatus(st){
+  if(!auth)return;
+  const j=await api('/api/user/'+auth.username+'/setstatus',{method:'POST',body:JSON.stringify({status:st,token:auth.token})});
+  if(j.ok){auth.user=j.user;save();updatePills();}
+}
+function startTimers(){
+  stopTimers();
+  const beat=async()=>{if(!auth)return;const j=await api('/api/user/'+auth.username+'/heartbeat',{method:'POST',body:JSON.stringify({token:auth.token})});if(j.ok){auth.user=j.user;save();updatePills();}};
+  beat();hb=setInterval(beat,30000);lobbyT=setInterval(()=>{refreshLobby();pollInvite();},5000);
+}
+function stopTimers(){clearInterval(hb);clearInterval(lobbyT);}
+
+document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{
+  ['lobby','shop','market','profile'].forEach(p=>{const el=$('panel-'+p);if(el)el.style.display=b.dataset.go===p?'block':'none';});
+  if(b.dataset.go==='shop')loadShop();
+  if(b.dataset.go==='market')loadMarket();
+  if(b.dataset.go==='profile')renderProfile();
+});
+
+async function refreshLobby(){
+  if(!auth)return;
+  const j=await api('/api/lobby/online');
+  const list=$('userList');list.innerHTML='';
+  (j.users||[]).forEach(u=>{
+    if(u.username===auth.username)return;
+    const row=document.createElement('div');row.className='user-row';
+    const st=u.status==='busy'?'busy':'online';
+    row.innerHTML=`<span class="dot ${st}"></span><div class="meta"><div class="name">${esc(u.displayName)}</div>
+      <div class="tag">${st} · Lv${u.level||1}${u.voiceActive?' · 🎤':''}</div></div>`;
+    if(st!=='busy'){
+      const btn=document.createElement('button');btn.className='btn sm secondary';btn.textContent='Request';
+      btn.onclick=()=>sendReq(u.username,u.displayName);row.appendChild(btn);
+    }
+    list.appendChild(row);
+  });
+  if(!list.children.length)list.innerHTML='<p class="sub">No other players online</p>';
+
+  const rq=await api('/api/lobby/play-requests?u='+encodeURIComponent(auth.username));
+  const area=$('reqArea');area.innerHTML='';
+  (rq.requests||[]).forEach(r=>{
+    const d=document.createElement('div');d.className='card';
+    d.innerHTML=`<strong>${esc(r.fromName||r.from)}</strong> wants to play (stake ${r.stake||0})<br>`;
+    const acc=document.createElement('button');acc.className='btn sm primary';acc.textContent='Accept';
+    acc.onclick=async()=>{
+      const j=await api('/api/lobby/accept-request',{method:'POST',body:JSON.stringify({username:auth.username,id:r.id})});
+      if(!j.ok)return toast(j.error||'Fail');
+      toast('Room '+j.roomCode);
+      connectRoom(j.roomCode,true,j.stake||0);
+    };
+    const rej=document.createElement('button');rej.className='btn sm secondary';rej.textContent='Decline';
+    rej.onclick=async()=>{await api('/api/lobby/clear-request',{method:'POST',body:JSON.stringify({username:auth.username,id:r.id})});d.remove();};
+    d.append(acc,rej);area.appendChild(d);
+  });
+}
+async function pollInvite(){
+  if(!auth||socket)return;
+  const j=await api('/api/lobby/my-invite?u='+encodeURIComponent(auth.username));
+  if(j.invite&&j.invite.guest===auth.username){
+    toast('Match found · joining');
+    connectRoom(j.invite.roomCode,false,j.invite.stake||0);
+  }
+}
+async function sendReq(to,name){
+  const stake=Number($('stakeSel').value)||0;
+  await api('/api/lobby/play-request',{method:'POST',body:JSON.stringify({from:auth.username,fromName:auth.user.displayName,to,stake})});
+  toast('Request → '+name);
+}
+
+$('btnDaily').onclick=async()=>{
+  const j=await api('/api/user/'+auth.username+'/daily-login',{method:'POST',body:JSON.stringify({token:auth.token})});
+  if(j.ok){auth.user=j.user;save();updatePills();toast(j.already?'Already claimed':'+ Daily fun!');}
+  else toast(j.error||'Fail');
+};
+$('btnCreate').onclick=()=>connectRoom(Math.random().toString(36).slice(2,8).toUpperCase(),true,Number($('stakeSel').value)||0);
+$('btnJoin').onclick=()=>{const c=prompt('Room code:');if(c)connectRoom(c.trim().toUpperCase(),false,0);};
+
+async function loadShop(){
+  const j=await api('/api/shop/get');shop=j.config;if(!shop)return;
+  const soft=$('shopSoft');soft.innerHTML='';
+  const addGroup=(title,items,kind)=>{
+    soft.innerHTML+=`<h2>${title}</h2>`;
+    (items||[]).forEach(p=>{
+      if((p.priceCoins||0)===0&&(p.priceFun||0)===0&&p.id==='default')return;
+      const d=document.createElement('div');d.className='card';
+      const em=p.emoji||'';
+      d.innerHTML=`<strong>${em} ${esc(p.label)}</strong> · ${p.priceCoins||0} coins${p.minLevel?` · Lv${p.minLevel}`:''}<br>`;
+      const b=document.createElement('button');b.className='btn sm primary';b.textContent='Buy';
+      b.onclick=async()=>{
+        const r=await api('/api/user/'+auth.username+'/buy-soft',{method:'POST',body:JSON.stringify({kind,id:p.id,token:auth.token})});
+        if(r.ok){auth.user=r.user;save();updatePills();toast('Bought '+p.label);renderProfile();}
+        else toast(r.error||'Fail');
+      };
+      d.appendChild(b);soft.appendChild(d);
+    });
+  };
+  addGroup('Board skins',shop.skins,'skin');
+  addGroup('Avatars',shop.avatars,'avatar');
+  addGroup('Mic skins',shop.mics,'mic');
+  addGroup('Room items',shop.roomItems,'room');
+
+  const sv=$('shopVoice');sv.innerHTML='';
+  if(!shop.paymentEnabled){
+    sv.innerHTML='<div class="card coming">Coming soon — Admin has not enabled real-money payments yet.</div>';
+  }else{
+    (shop.voicePackages||[]).forEach(p=>{
+      const d=document.createElement('div');d.className='card';
+      d.innerHTML=`<strong>${esc(p.label)}</strong> · Rs. ${p.priceNpr||p.price||0}<br>`;
+      const b=document.createElement('button');b.className='btn sm primary';b.textContent='Buy';
+      b.onclick=()=>startPay('voice',p);d.appendChild(b);sv.appendChild(d);
+    });
+  }
+}
+function startPay(packageType,pack){
+  pendingBuy={packageType,packageId:pack.id,amount:pack.priceNpr||pack.price||0,label:pack.label};
+  $('payBox').style.display='block';
+  const methods=shop.paymentMethods||[];
+  let html=`<p><strong>${pack.label}</strong> — Rs. ${pendingBuy.amount}</p><label>Method</label><select id="payMethod">`;
+  methods.forEach(m=>html+=`<option value="${m.id}">${esc(m.label)}</option>`);
+  html+='</select><div id="payInfo" class="sub"></div>';
+  $('payDetail').innerHTML=html;
+  const upd=()=>{const m=methods.find(x=>x.id===$('payMethod').value);$('payInfo').innerHTML=m?`<b>${esc(m.label)}</b><br>${esc(m.detail||'')}`:'';};
+  $('payMethod').onchange=upd;upd();
+}
+$('btnSubmitPay').onclick=async()=>{
+  if(!pendingBuy)return;
+  let proofData='',proofMime='';
+  const f=$('payProof').files?.[0];
+  if(f){if(f.size>150000){toast('Max ~150KB');return;}proofMime=f.type;proofData=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]||'');r.onerror=rej;r.readAsDataURL(f);});}
+  const j=await api('/api/shop/submit-proof',{method:'POST',body:JSON.stringify({username:auth.username,token:auth.token,packageId:pendingBuy.packageId,packageType:pendingBuy.packageType,methodId:$('payMethod')?.value,amount:pendingBuy.amount,note:$('payNote').value,proofData,proofMime})});
+  if(j.ok){toast('Proof sent');$('payBox').style.display='none';pendingBuy=null;}else toast(j.error||'Fail');
+};
+
+async function loadMarket(){
+  const j=await api('/api/shop/market-list');
+  const el=$('marketList');el.innerHTML='';
+  (j.listings||[]).forEach(L=>{
+    const d=document.createElement('div');d.className='card';
+    d.innerHTML=`<b>${L.itemType}:${L.itemId}</b> by ${esc(L.seller)}<br>${L.priceFun||0} fun · ${L.priceCoins||0} coins<br>`;
+    if(L.seller!==auth.username){
+      const b=document.createElement('button');b.className='btn sm primary';b.textContent='Buy';
+      b.onclick=async()=>{
+        const r=await api('/api/shop/market-buy',{method:'POST',body:JSON.stringify({listingId:L.id,buyer:auth.username,token:auth.token})});
+        if(r.ok){toast('Bought');const me=await api('/api/user/'+auth.username+'/me');if(me.ok){auth.user=me.user;save();updatePills();}loadMarket();}
+        else toast(r.error||'Fail');
+      };
+      d.appendChild(b);
+    }
+    el.appendChild(d);
+  });
+  if(!el.children.length)el.innerHTML='<p class="sub">No listings</p>';
+}
+$('btnListSell').onclick=async()=>{
+  const item={seller:auth.username,itemType:$('sellType').value,itemId:$('sellId').value.trim(),priceFun:Number($('sellFun').value)||0,priceCoins:Number($('sellCoins').value)||0};
+  const j=await api('/api/shop/market-add',{method:'POST',body:JSON.stringify(item)});
+  if(j.ok){toast('Listed');loadMarket();}else toast(j.error||'Fail');
+};
+
+function renderProfile(){
+  if(!auth)return;
+  const u=auth.user;
+  $('profCard').innerHTML=`<div class="stat">
+    <span>@${u.username}</span><span>Lv ${u.level||1}</span>
+    <span>Fun ${u.funTokens||0}</span><span>Daily ${u.dailyFunTokens||0}</span>
+    <span>Coins ${u.coins||0}</span><span>Wins ${u.wins||0}</span>
+  </div>
+  <p class="sub" style="margin-top:8px">Referral: <b>${u.referralCode||'—'}</b></p>
+  <p class="sub">Voice: ${u.voiceActive?fmtMs(u.voiceRemainingMs):'Off'}</p>
+  <p class="sub">Skins: ${(u.ownedSkins||[]).join(', ')} · Mics: ${(u.ownedMics||[]).join(', ')}</p>`;
+  const box=$('equipBox');box.innerHTML='';
+  (u.ownedSkins||[]).forEach(id=>{
+    const b=document.createElement('button');b.className='btn sm '+(u.equippedSkin===id?'primary':'secondary');b.textContent='Skin '+id;
+    b.onclick=async()=>{const j=await api('/api/user/'+auth.username+'/equip',{method:'POST',body:JSON.stringify({skinId:id,token:auth.token})});if(j.ok){auth.user=j.user;save();renderProfile();}};
+    box.appendChild(b);
+  });
+  (u.ownedMics||['mic_default']).forEach(id=>{
+    const b=document.createElement('button');b.className='btn sm '+(u.equippedMic===id?'primary':'secondary');b.textContent='Mic '+id;
+    b.onclick=async()=>{const j=await api('/api/user/'+auth.username+'/equip',{method:'POST',body:JSON.stringify({micId:id,token:auth.token})});if(j.ok){auth.user=j.user;save();renderProfile();}};
+    box.appendChild(b);
+  });
+}
+$('btnShareRef').onclick=async()=>{
+  const link=location.origin+'/?ref='+(auth.user.referralCode||'');
+  try{await navigator.clipboard.writeText(link);toast('Link copied');}catch{prompt('Copy link',link);}
+};
+$('btnConvert').onclick=async()=>{
+  const j=await api('/api/user/'+auth.username+'/convert-fun',{method:'POST',body:JSON.stringify({times:1,token:auth.token})});
+  if(j.ok){auth.user=j.user;save();updatePills();renderProfile();toast('Converted');}else toast(j.error||'Fail');
+};
+$('btnGift').onclick=async()=>{
+  const ms=Math.floor((parseFloat($('giftHours').value)||0)*3600000);
+  const j=await api('/api/user/'+auth.username+'/gift-voice',{method:'POST',body:JSON.stringify({to:$('giftTo').value.trim().toLowerCase(),ms,token:auth.token})});
+  if(j.ok){auth.user=j.user;save();updatePills();toast('Gifted');}else toast(j.error||'Fail');
+};
+
+// Game
+function players(){return roomData?.players||[];}
+function state(){return roomData?.state||null;}
+function myTurn(){const s=state();return s&&s.turn===mySeat&&!s.finished;}
+function initBoard(){
+  const b=$('board');b.innerHTML='';
+  for(let r=0;r<15;r++)for(let c=0;c<15;c++){
+    const el=document.createElement('div');el.className='cell';
+    if(r>=6&&r<=8&&c>=6&&c<=8)el.classList.add('center');
+    if(r<6&&c<6)el.classList.add('home','red');if(r<6&&c>8)el.classList.add('home','green');
+    if(r>8&&c>8)el.classList.add('home','yellow');if(r>8&&c<6)el.classList.add('home','blue');
+    if(c===7&&r>=1&&r<=5)el.classList.add('lane','red');if(r===7&&c>=1&&c<=5)el.classList.add('lane','blue');
+    if(c===7&&r>=9&&r<=13)el.classList.add('lane','yellow');if(r===7&&c>=9&&c<=13)el.classList.add('lane','green');
+    const on=((r===6||r===8)&&(c<=5||c>=9))||((c===6||c===8)&&(r<=5||r>=9))||(r===7&&(c===0||c===14))||(c===7&&(r===0||r===14));
+    if(on)el.classList.add('track');b.appendChild(el);
+  }
+  colors.forEach(c=>{const base=document.createElement('div');base.className='base '+c;base.id='base-'+c;
+    for(let i=0;i<4;i++){const s=document.createElement('div');s.className='slot';base.appendChild(s);}b.appendChild(base);});
+  for(let s=0;s<4;s++){
+    const m=document.createElement('button');m.className='seatMic locked s'+s;m.id='seatMic'+s;m.textContent='🔒';
+    m.onclick=()=>toggleSeatMic(s);b.appendChild(m);
+  }
+}
+function legalMoves(){
+  const s=state();if(!s||!s.rolled||!myTurn())return [];
+  return players()[mySeat].tokens.map((p,i)=>p<0?((s.dice===1||s.dice===6)?i:-1):(p<58&&p+s.dice<=58?i:-1)).filter(i=>i>=0);
+}
+function render(){
+  document.querySelectorAll('.piece').forEach(x=>x.remove());
+  const ps=players(),s=state();
+  ps.forEach((pl,pi)=>pl.tokens.forEach((p,ti)=>{
+    let parent;if(p<0)parent=$('base-'+colors[pi])?.children[ti];
+    else{const xy=coord(pi,p);if(!xy)return;parent=$('board').children[xy[0]*15+xy[1]];}
+    if(!parent)return;
+    const btn=document.createElement('button');btn.className='piece '+colors[pi];btn.textContent=String(ti+1);
+    if(pi===mySeat&&legalMoves().includes(ti))btn.classList.add('pick');
+    btn.disabled=!(pi===mySeat&&legalMoves().includes(ti));
+    btn.onclick=()=>send({type:'move',token:ti});parent.appendChild(btn);
+  }));
+  if(!s){$('dice').textContent='⚄';$('dice').classList.add('disabled');}
+  else{$('dice').textContent=s.dice?['','⚀','⚁','⚂','⚃','⚄','⚅'][s.dice]:'⚄';
+    $('dice').classList.toggle('disabled',!(myTurn()&&!s.rolled&&!s.finished));}
+  const bar=$('playersBar');bar.innerHTML='';
+  ps.forEach((pl,pi)=>{
+    const chip=document.createElement('div');
+    chip.className='chip'+(pl.username===auth.username?' me':'')+(s&&s.turn===pi&&!s.finished?' turn':'');
+    chip.textContent=(pl.avatar&&pl.avatar!=='default'?'':'')+pl.name+(pl.voiceActive?' 🎤':'')+(pl.connected===false?' ⚠️':'');
+    bar.appendChild(chip);
+    const mic=$('seatMic'+pi);
+    if(mic){
+      if(pl.username===auth.username){
+        if(auth.user.voiceActive){mic.classList.remove('locked');mic.textContent=micOn?'🎤':'🔇';mic.className='seatMic '+(micOn?'on ':'')+'s'+pi;}
+        else{mic.className='seatMic locked s'+pi;mic.textContent='🔒';}
+      }else{
+        mic.className='seatMic '+(pl.voiceActive?'':'locked ')+'s'+pi;mic.textContent=pl.voiceActive?'🎤':'🔒';
+      }
+    }
+  });
+  $('btnStart').style.display=(roomData?.host===auth.username&&(!s||s.finished))?'block':'none';
+  const hasDC=ps.some(p=>p.connected===false);
+  $('btnVote').style.display=(s&&!s.finished&&hasDC)?'block':'none';
+  $('potPill').textContent='Pot '+(roomData?.pot||0)+' · Stake '+(roomData?.stake||0);
+  if(roomData?.chat){const box=$('chatBox');box.innerHTML=roomData.chat.map(m=>`<div><b>${m.name}:</b> ${esc(m.text)}</div>`).join('');box.scrollTop=box.scrollHeight;}
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function send(o){if(socket?.readyState===1)socket.send(JSON.stringify(o));else toast('Not in room');}
+
+function connectRoom(code,create,stake){
+  if(socket)try{socket.close();}catch{}
+  closeAllPeers();roomId=code.toUpperCase();
+  const proto=location.protocol==='https:'?'wss':'ws';
+  const q=new URLSearchParams({u:auth.username,name:auth.user.displayName,token:auth.token,create:create?'1':'0',stake:String(stake||0)});
+  socket=new WebSocket(`${proto}://${location.host}/room/${roomId}?`+q);
+  socket.onopen=()=>{show('sc-game');$('roomPill').textContent='Room '+roomId;setStatus('busy');toast('Joined');};
+  socket.onmessage=async e=>{
+    let m;try{m=JSON.parse(e.data);}catch{return;}
+    if(m.type==='error'){toast(m.message);return;}
+    if(m.type==='chat'){roomData=roomData||{};roomData.chat=roomData.chat||[];roomData.chat.push(m.msg);render();return;}
+    if(m.type==='mic-state'){return;}
+    if(m.type==='webrtc-offer'||m.type==='webrtc-answer'||m.type==='webrtc-ice'){await handleSignal(m);return;}
+    if(m.type==='peer-left'){if(!m.soft)closePeer(m.username);render();return;}
+    if(m.type==='state'){
+      roomData=m.room;mySeat=players().findIndex(p=>p.username===auth.username);render();
+      if(m.message)toast(m.message);
+      players().filter(p=>p.username!==auth.username).forEach(p=>{
+        if(auth.user.voiceActive&&p.voiceActive&&!peers.has(p.username))connectToPeer(p.username,p.name);
+      });
+      // refresh balances after game
+      if(m.room?.state?.finished){api('/api/user/'+auth.username+'/me').then(j=>{if(j.ok){auth.user=j.user;save();updatePills();}});}
+    }
+  };
+  socket.onclose=()=>{toast('Left room');closeAllPeers();setStatus('online');show('sc-lobby');refreshLobby();};
+}
+$('btnLeave').onclick=()=>{send({type:'leave'});try{socket?.close();}catch{};};
+$('btnStart').onclick=()=>send({type: state()?.finished ? 'rematch' : 'start'});
+$('btnVote').onclick=()=>send({type:'vote-continue'});
+$('dice').onclick=()=>send({type:'roll'});
+$('chatSend').onclick=()=>{const t=$('chatInput').value.trim();if(!t)return;send({type:'chat',text:t});$('chatInput').value='';};
+$('chatInput').addEventListener('keydown',e=>{if(e.key==='Enter')$('chatSend').click();});
+
+async function ensureStream(){if(localStream)return localStream;localStream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});localStream.getAudioTracks().forEach(t=>t.enabled=false);return localStream;}
+async function toggleSeatMic(seat){
+  if(seat!==mySeat)return;
+  if(!auth?.user?.voiceActive){toast('Need Voice time');return;}
+  micOn=!micOn;
+  try{await ensureStream();localStream.getAudioTracks().forEach(t=>t.enabled=micOn);send({type:'mic-state',on:micOn});render();toast(micOn?'Mic On':'Mic Off');}
+  catch{micOn=false;toast('Mic permission needed');render();}
+}
+function createPC(target,name){
+  if(peers.has(target))return peers.get(target).pc;
+  const pc=new RTCPeerConnection(ICE);const entry={pc,audioEl:null,name};peers.set(target,entry);
+  if(localStream)localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));
+  pc.onicecandidate=e=>{if(e.candidate)send({type:'webrtc-ice',to:target,candidate:e.candidate});};
+  pc.ontrack=e=>{let a=entry.audioEl;if(!a){a=document.createElement('audio');a.autoplay=true;a.playsInline=true;a.style.display='none';document.body.appendChild(a);entry.audioEl=a;}a.srcObject=e.streams[0];};
+  return pc;
+}
+async function connectToPeer(target,name){
+  if(!auth.user.voiceActive||auth.username>=target)return;
+  const pc=createPC(target,name);
+  try{await ensureStream();localStream.getTracks().forEach(t=>{if(!pc.getSenders().find(s=>s.track===t))pc.addTrack(t,localStream);});
+    const offer=await pc.createOffer();await pc.setLocalDescription(offer);send({type:'webrtc-offer',to:target,sdp:pc.localDescription});}catch(e){console.warn(e);}
+}
+async function handleSignal(m){
+  if(!auth.user.voiceActive)return;const from=m.from;
+  if(m.type==='webrtc-offer'){const pc=createPC(from,m.fromName);try{await ensureStream();localStream.getTracks().forEach(t=>{if(!pc.getSenders().find(s=>s.track===t))pc.addTrack(t,localStream);});
+    await pc.setRemoteDescription(m.sdp);const answer=await pc.createAnswer();await pc.setLocalDescription(answer);send({type:'webrtc-answer',to:from,sdp:pc.localDescription});}catch(e){console.warn(e);}}
+  else if(m.type==='webrtc-answer'){const e=peers.get(from);if(e)try{await e.pc.setRemoteDescription(m.sdp);}catch{}}
+  else if(m.type==='webrtc-ice'&&m.candidate){const e=peers.get(from);if(e)try{await e.pc.addIceCandidate(m.candidate);}catch{}}
+}
+function closePeer(id){const e=peers.get(id);if(!e)return;try{e.pc.close();}catch{}e.audioEl?.remove();peers.delete(id);}
+function closeAllPeers(){[...peers.keys()].forEach(closePeer);}
+
+initBoard();
+if(auth?.token&&auth?.username){
+  api('/api/user/'+auth.username+'/me').then(j=>{if(j.ok){auth.user=j.user;save();enterLobby();}else{auth=null;localStorage.removeItem('ludo_auth');show('sc-login');}}).catch(()=>show('sc-login'));
+}else show('sc-login');
+</script>
+</body>
+</html>
