@@ -551,6 +551,7 @@ function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;',
 function send(o){if(socket?.readyState===1)socket.send(JSON.stringify(o));else toast('Not in room');}
 
 function connectRoom(code,create,stake){
+  $('board').classList.remove('skin-gold','skin-nepal','skin-neon');$('board').classList.add('skin-'+(auth?.user?.equippedSkin||'default'));
   if(socket)try{socket.close();}catch{}
   closeAllPeers();roomId=code.toUpperCase();
   const proto=location.protocol==='https:'?'wss':'ws';
