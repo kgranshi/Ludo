@@ -630,7 +630,7 @@ export class UserAccount {
         body: JSON.stringify({
           username: user.username, displayName: user.displayName, status: user.status, lastSeen: user.lastSeen,
           voiceActive: !user.banned && (user.voiceUntil || 0) > Date.now(),
-          level: user.level || 1, equippedAvatar: user.equippedAvatar, rankScore: (user.level || 1) * 1000 + (user.wins || 0)
+          level: user.level || 1, equippedAvatar: user.equippedAvatar, avatarPhoto: user.avatarPhoto || '', rankScore: (user.level || 1) * 1000 + (user.wins || 0)
         })
       }));
     } catch {}
@@ -662,7 +662,7 @@ export class Lobby {
       list[body.username] = {
         username: body.username, displayName: body.displayName, status: body.status || 'online',
         lastSeen: body.lastSeen || Date.now(), voiceActive: !!body.voiceActive,
-        level: body.level || 1, equippedAvatar: body.equippedAvatar || 'default', rankScore: body.rankScore || 0
+        level: body.level || 1, equippedAvatar: body.equippedAvatar || 'default', avatarPhoto: body.avatarPhoto || '', rankScore: body.rankScore || 0
       };
       const now = Date.now();
       for (const k of Object.keys(list)) if (now - (list[k].lastSeen || 0) > 5 * 60 * 1000) delete list[k];
