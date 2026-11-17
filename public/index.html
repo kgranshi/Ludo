@@ -80,7 +80,7 @@ input,select,textarea{width:100%;padding:11px;border-radius:11px;border:1px soli
 .player-room-card{position:relative;display:flex;align-items:center;gap:6px;min-width:0;min-height:58px;padding:6px;border:1px solid #a68a55;border-radius:11px;background:linear-gradient(145deg,#493a2a,#18243a 70%);color:#fff;box-shadow:inset 0 0 12px #f2c56b22,0 3px 8px #0005;overflow:hidden}
 .player-room-card.seat-0{grid-column:1;grid-row:1}.player-room-card.seat-1{grid-column:2;grid-row:1}
 .player-room-card.seat-2{grid-column:2;grid-row:3}.player-room-card.seat-3{grid-column:1;grid-row:3}
-.player-room-card.me{border:2px solid #f7c65b}.player-room-card.turn{box-shadow:0 0 0 2px #f7c65b, inset 0 0 12px #f2c56b22}
+.player-room-card.me{border:2px solid #f7c65b}.player-room-card.vacant{opacity:.48;border-style:dashed;background:linear-gradient(145deg,#26354b,#131d2e)}.player-room-card.turn{box-shadow:0 0 0 2px #f7c65b, inset 0 0 12px #f2c56b22}
 .player-room-photo{width:38px;height:38px;object-fit:cover;border-radius:50%;flex:0 0 38px;border:2px solid #f7c65b}
 .player-room-photo.placeholder{display:grid;place-items:center;background:#34445e;font-size:20px}
 .player-room-info{min-width:0;flex:1;z-index:1}.player-room-info b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}.player-room-info small{font-size:9px;opacity:.8}
@@ -541,22 +541,33 @@ function render(){
   else{$('dice').textContent=s.dice?['','⚀','⚁','⚂','⚃','⚄','⚅'][s.dice]:'⚄';
     $('dice').classList.toggle('disabled',!(myTurn()&&!s.rolled&&!s.finished));}
   const bar=$('playersBar');bar.innerHTML='';
-  ps.forEach((pl,pi)=>{
+  const icons={lamp:'💡',trophy:'🏆',sofa:'🛋️',plant:'🪴',fireplace:'🔥',flag:'🇳🇵',painting:'🖼️',bed:'🛏️'};
+  const skinNames={default:'Classic',gold:'Gold',nepal:'Nepal',neon:'Neon'};
+  // Always render four personal room spaces, even before all seats are occupied.
+  // Each occupied seat shows that player's own photo, room decor, mic and board theme to everyone.
+  [0,1,2,3].forEach(seat=>{
+    const pl=ps.find(p=>Number(p.seat)===seat);
+    const isMe=!!pl&&pl.username===auth.username;
+    const isTurn=!!pl&&s&&!s.finished&&s.turn===ps.indexOf(pl);
     const chip=document.createElement('div');
-    chip.className='player-room-card seat-'+pl.seat+(pl.username===auth.username?' me':'')+(s&&s.turn===pi&&!s.finished?' turn':'');
-    const photo=pl.avatarPhoto?'<img class="player-room-photo" src="'+pl.avatarPhoto+'" alt="">':'<span class="player-room-photo placeholder">👤</span>';
-    const icons={lamp:'💡',trophy:'🏆',sofa:'🛋️'};
-    const decor=(pl.roomDecorEquipped||[]).map(id=>'<span class="player-room-decor">'+(icons[id]||'✨')+'</span>').join('');
-    const skinNames={default:'Classic',gold:'Gold',nepal:'Nepal',neon:'Neon'};
-    chip.innerHTML='<div class="player-room-wall">'+decor+'</div>'+photo+'<div class="player-room-info"><b>'+esc(pl.name)+'</b><small>'+esc(skinNames[pl.skin]||pl.skin||'Classic')+' board</small><div class="player-room-items">'+decor+'</div></div><span class="player-room-mic">'+(pl.voiceActive?'🎙️':'🔇')+'</span>';
+    chip.className='player-room-card seat-'+seat+(isMe?' me':'')+(isTurn?' turn':'')+(!pl?' vacant':'');
+    if(!pl){
+      chip.innerHTML='<span class="player-room-photo placeholder">＋</span><div class="player-room-info"><b>खाली कोठा</b><small>Seat '+(seat+1)+' · खेलाडी आउँदैछन्</small></div><span class="player-room-mic">🏠</span>';
+    }else{
+      const photo=pl.avatarPhoto?'<img class="player-room-photo" src="'+pl.avatarPhoto+'" alt="">':'<span class="player-room-photo placeholder">'+esc((pl.name||'?').slice(0,1).toUpperCase())+'</span>';
+      const decor=(pl.roomDecorEquipped||[]).map(id=>'<span class="player-room-decor" title="'+esc(id)+'">'+(icons[id]||'✨')+'</span>').join('');
+      const roomSkin={gold:'linear-gradient(145deg,#75531d,#30233a)',nepal:'linear-gradient(145deg,#8b2635,#164d3b)',neon:'linear-gradient(145deg,#40206e,#102e42)',default:'linear-gradient(145deg,#493a2a,#18243a 70%)'};
+      chip.style.background=roomSkin[pl.skin]||roomSkin.default;
+      chip.innerHTML='<div class="player-room-wall">'+decor+'</div>'+photo+'<div class="player-room-info"><b>'+esc(pl.name||pl.username)+'</b><small>'+esc(skinNames[pl.skin]||pl.skin||'Classic')+' · '+(pl.connected===false?'पुनः जोडिँदै':'अनलाइन')+'</small><div class="player-room-items">'+(decor||'<span class="player-room-decor">🪑 आफ्नो कोठा</span>')+'</div></div><span class="player-room-mic">'+(pl.voiceActive?'🎙️':'🔇')+'</span>';
+    }
     bar.appendChild(chip);
-    const mic=$('seatMic'+pi);
-    if(mic){
-      if(pl.username===auth.username){
-        if(auth.user.voiceActive){mic.classList.remove('locked');mic.textContent=micOn?'🎤':'🔇';mic.className='seatMic '+(micOn?'on ':'')+'s'+pi;}
-        else{mic.className='seatMic locked s'+pi;mic.textContent='🔒';}
+    const mic=$('seatMic'+seat);
+    if(mic&&pl){
+      if(isMe){
+        if(auth.user.voiceActive){mic.classList.remove('locked');mic.textContent=micOn?'🎤':'🔇';mic.className='seatMic '+(micOn?'on ':'')+'s'+seat;}
+        else{mic.className='seatMic locked s'+seat;mic.textContent='🔒';}
       }else{
-        mic.className='seatMic '+(pl.voiceActive?'':'locked ')+'s'+pi;mic.textContent=pl.voiceActive?'🎤':'🔒';
+        mic.className='seatMic '+(pl.voiceActive?'':'locked ')+'s'+seat;mic.textContent=pl.voiceActive?'🎤':'🔒';
       }
     }
   });
