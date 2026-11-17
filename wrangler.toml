@@ -1,0 +1,27 @@
+name = "nepali-ludo"
+main = "worker.js"
+compatibility_date = "2026-11-16"
+
+[[durable_objects.bindings]]
+name = "USERS"
+class_name = "UserAccount"
+
+[[durable_objects.bindings]]
+name = "LUDO_ROOMS"
+class_name = "LudoRoom"
+
+[[durable_objects.bindings]]
+name = "LOBBY"
+class_name = "Lobby"
+
+[[durable_objects.bindings]]
+name = "SHOP"
+class_name = "ShopConfig"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["UserAccount", "LudoRoom", "Lobby", "ShopConfig"]
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
