@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#0b1220">
-<title>Ludo Live</title>
+<title>G Ludo — नेपाली लुडो</title>
 <style>
 :root{--bg:#0b1220;--panel:#152038;--line:#2a3b5c;--gold:#ffd166;--txt:#eef2ff;--muted:#8fa0c4;--ok:#2dd4a8;--busy:#e85d6a;--blue:#3b82f6}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -62,13 +62,13 @@ input,select,textarea{width:100%;padding:11px;border-radius:11px;border:1px soli
 #chatRow{display:flex;gap:4px}#chatInput{flex:1;padding:8px;font-size:13px}
 #chatSend{border:0;background:#2a3b5c;color:#fff;border-radius:8px;padding:0 10px;font-weight:700;font-size:12px}
 .toast{position:fixed;left:50%;bottom:72px;transform:translateX(-50%);background:#1a2744;border:1px solid var(--line);padding:10px 12px;border-radius:10px;font-size:12px;z-index:50;display:none;max-width:90%;text-align:center}
-.coming{opacity:.6;font-style:italic}
+.coming{opacity:.6;font-style:italic}\n#roomPreview{min-height:150px;border:1px solid var(--line);border-radius:14px;padding:14px;background:radial-gradient(circle at 20% 15%,#6b4b25,#19233c 55%,#10182a);display:flex;gap:10px;flex-wrap:wrap;align-items:center}\n.room-item{background:#ffffff18;border:1px solid #ffffff35;border-radius:10px;padding:10px;font-size:12px}\n.avatar-photo{width:54px;height:54px;object-fit:cover;border-radius:50%;border:2px solid var(--gold);background:#243656}\n.brand{letter-spacing:.4px}
 </style>
 </head>
 <body>
 <div id="app">
 <header>
-  <div class="brand">Ludo Live</div>
+  <div class="brand">🇳🇵 G Ludo</div>
   <div class="pills">
     <span class="pill" id="balPill">Fun 0</span>
     <span class="pill" id="voicePill">Voice Off</span>
@@ -93,6 +93,7 @@ input,select,textarea{width:100%;padding:11px;border-radius:11px;border:1px soli
     <button class="btn secondary" data-go="shop">Shop</button>
     <button class="btn secondary" data-go="market">Market</button>
     <button class="btn secondary" data-go="profile">Profile</button>
+    <button class="btn secondary" data-go="room">My Room</button>
   </div>
   <div id="panel-lobby">
     <h1>Online</h1>
@@ -131,9 +132,21 @@ input,select,textarea{width:100%;padding:11px;border-radius:11px;border:1px soli
     <label>Price coins</label><input id="sellCoins" type="number" value="10">
     <button class="btn secondary" id="btnListSell">List for sale</button>
   </div>
+  <div id="panel-room" style="display:none">
+    <h1>मेरो व्यक्तिगत कोठा · My Room</h1>
+    <p class="sub">आफ्नो फोटो, कोठाको सजावट र जितका ट्रफी यहाँ देखिन्छन्।</p>
+    <div id="roomPreview"></div>
+    <label>अरू खेलाडीको कोठा हेर्न username</label><input id="visitRoomUser" placeholder="username">
+    <button class="btn secondary" id="btnVisitRoom">Visit player room</button>
+    <div id="visitedRoom"></div>
+  </div>
   <div id="panel-profile" style="display:none">
     <h1>Profile</h1>
     <div class="card" id="profCard"></div>
+    <h2>नाम र प्रोफाइल फोटो</h2>
+    <label>Display name</label><input id="profileName" maxlength="18">
+    <label>Profile photo (max 150KB)</label><input id="profilePhoto" type="file" accept="image/png,image/jpeg,image/webp,image/gif">
+    <button class="btn secondary" id="btnSaveProfile">Save profile</button>
     <button class="btn secondary" id="btnShareRef">Copy referral link</button>
     <h2>Convert fun → coin</h2>
     <p class="sub">100 permanent fun = 1 coin</p>
@@ -144,6 +157,8 @@ input,select,textarea{width:100%;padding:11px;border-radius:11px;border:1px soli
     <button class="btn secondary" id="btnGift">Send voice gift</button>
     <h2>Equip</h2>
     <div id="equipBox"></div>
+    <h2>मेरो कोठाका सामान</h2><p class="sub">Shop बाट किनेका सामानमध्ये कोठामा देखाउन चाहेको छान्नुहोस्।</p>
+    <div id="decorBox"></div>
   </div>
 </section>
 
@@ -245,10 +260,11 @@ function startTimers(){
 function stopTimers(){clearInterval(hb);clearInterval(lobbyT);}
 
 document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{
-  ['lobby','shop','market','profile'].forEach(p=>{const el=$('panel-'+p);if(el)el.style.display=b.dataset.go===p?'block':'none';});
+  ['lobby','shop','market','profile','room'].forEach(p=>{const el=$('panel-'+p);if(el)el.style.display=b.dataset.go===p?'block':'none';});
   if(b.dataset.go==='shop')loadShop();
   if(b.dataset.go==='market')loadMarket();
   if(b.dataset.go==='profile')renderProfile();
+  if(b.dataset.go==='room')renderMyRoom();
 });
 
 async function refreshLobby(){
@@ -389,9 +405,31 @@ $('btnListSell').onclick=async()=>{
   if(j.ok){toast('Listed');loadMarket();}else toast(j.error||'Fail');
 };
 
+async function renderMyRoom(){
+  if(!auth)return;
+  const u=auth.user;
+  const photo=u.avatarPhoto?'<img class="avatar-photo" src="'+u.avatarPhoto+'" alt="">':'<div class="avatar-photo" style="display:grid;place-items:center">👤</div>';
+  const items=(u.roomDecorEquipped||[]).map(x=>'<span class="room-item">'+esc(x)+'</span>').join('');
+  $('roomPreview').innerHTML=photo+'<div><b>'+esc(u.displayName||u.username)+'</b><div class="sub">@'+esc(u.username)+' · Level '+(u.level||1)+' · Wins '+(u.wins||0)+'</div><div class="sub">Games played: '+(u.games||0)+'</div></div>'+items+(u.wins?'<span class="room-item">🏆 '+u.wins+' wins</span>':'');
+}
+$('btnSaveProfile').onclick=async()=>{
+  const file=$('profilePhoto').files?.[0];let avatarPhoto=auth.user.avatarPhoto||'';
+  if(file){if(file.size>150000){toast('Photo max 150KB');return;}avatarPhoto=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result));r.onerror=reject;r.readAsDataURL(file);});}
+  const j=await api('/api/user/'+auth.username+'/update-profile',{method:'POST',body:JSON.stringify({displayName:$('profileName').value.trim(),avatarPhoto,token:auth.token})});
+  if(!j.ok)return toast(j.error||'Profile update failed');auth.user=j.user;save();renderProfile();renderMyRoom();toast('Profile saved');
+};
+$('btnVisitRoom').onclick=async()=>{
+  const username=$('visitRoomUser').value.trim().toLowerCase();if(!username)return;
+  const j=await api('/api/user/'+encodeURIComponent(username)+'/public');
+  if(!j.ok){$('visitedRoom').textContent=j.error||'Player not found';return;}
+  const p=j.profile;const photo=p.avatarPhoto?'<img class="avatar-photo" src="'+p.avatarPhoto+'">':'<span>👤</span>';
+  $('visitedRoom').innerHTML='<div class="card">'+photo+' <b>'+esc(p.displayName)+'</b><div class="sub">@'+esc(p.username)+' · Level '+p.level+' · Wins '+p.wins+' · Games '+(p.games||0)+'</div><div>'+(p.roomDecor||[]).map(x=>'<span class="room-item">'+esc(x)+'</span>').join('')+'</div></div>';
+};
+
 function renderProfile(){
   if(!auth)return;
   const u=auth.user;
+  $('profileName').value=u.displayName||u.username;
   $('profCard').innerHTML=`<div class="stat">
     <span>@${u.username}</span><span>Lv ${u.level||1}</span>
     <span>Fun ${u.funTokens||0}</span><span>Daily ${u.dailyFunTokens||0}</span>
@@ -400,12 +438,27 @@ function renderProfile(){
   <p class="sub" style="margin-top:8px">Referral: <b>${u.referralCode||'—'}</b></p>
   <p class="sub">Voice: ${u.voiceActive?fmtMs(u.voiceRemainingMs):'Off'}</p>
   <p class="sub">Skins: ${(u.ownedSkins||[]).join(', ')} · Mics: ${(u.ownedMics||[]).join(', ')}</p>`;
+  const photo=u.avatarPhoto?`<img class="avatar-photo" src="${u.avatarPhoto}" alt="Profile photo">`:'';
+  $('profCard').insertAdjacentHTML('afterbegin',photo);
   const box=$('equipBox');box.innerHTML='';
   (u.ownedSkins||[]).forEach(id=>{
     const b=document.createElement('button');b.className='btn sm '+(u.equippedSkin===id?'primary':'secondary');b.textContent='Skin '+id;
     b.onclick=async()=>{const j=await api('/api/user/'+auth.username+'/equip',{method:'POST',body:JSON.stringify({skinId:id,token:auth.token})});if(j.ok){auth.user=j.user;save();renderProfile();}};
     box.appendChild(b);
   });
+  (u.ownedAvatars||['default']).forEach(id=>{
+    const b=document.createElement('button');b.className='btn sm '+(u.equippedAvatar===id?'primary':'secondary');b.textContent='Avatar '+id;
+    b.onclick=async()=>{const j=await api('/api/user/'+auth.username+'/equip',{method:'POST',body:JSON.stringify({avatarId:id,token:auth.token})});if(j.ok){auth.user=j.user;save();renderProfile();}};
+    box.appendChild(b);
+  });
+  const decor=$('decorBox');decor.innerHTML='';
+  (u.roomDecor||[]).forEach(id=>{
+    const label=document.createElement('label');label.style.display='inline-flex';label.style.alignItems='center';label.style.gap='6px';
+    const cb=document.createElement('input');cb.type='checkbox';cb.style.width='auto';cb.checked=(u.roomDecorEquipped||[]).includes(id);cb.dataset.decor=id;
+    label.append(cb,document.createTextNode(id));decor.appendChild(label);
+  });
+  const saveDecor=document.createElement('button');saveDecor.className='btn secondary';saveDecor.textContent='Save room decorations';
+  saveDecor.onclick=async()=>{const roomDecor=[...decor.querySelectorAll('input:checked')].map(x=>x.dataset.decor);const j=await api('/api/user/'+auth.username+'/equip',{method:'POST',body:JSON.stringify({roomDecor,token:auth.token})});if(j.ok){auth.user=j.user;save();renderMyRoom();toast('Room saved');}else toast(j.error||'Could not save');};decor.appendChild(saveDecor);
   (u.ownedMics||['mic_default']).forEach(id=>{
     const b=document.createElement('button');b.className='btn sm '+(u.equippedMic===id?'primary':'secondary');b.textContent='Mic '+id;
     b.onclick=async()=>{const j=await api('/api/user/'+auth.username+'/equip',{method:'POST',body:JSON.stringify({micId:id,token:auth.token})});if(j.ok){auth.user=j.user;save();renderProfile();}};
@@ -451,7 +504,7 @@ function initBoard(){
 }
 function legalMoves(){
   const s=state();if(!s||!s.rolled||!myTurn())return [];
-  return players()[mySeat].tokens.map((p,i)=>p<0?((s.dice===1||s.dice===6)?i:-1):(p<58&&p+s.dice<=58?i:-1)).filter(i=>i>=0);
+  return players()[mySeat].tokens.map((p,i)=>p<0?(s.dice===6?i:-1):(p<58&&p+s.dice<=58?i:-1)).filter(i=>i>=0);
 }
 function render(){
   document.querySelectorAll('.piece').forEach(x=>x.remove());
@@ -472,7 +525,7 @@ function render(){
   ps.forEach((pl,pi)=>{
     const chip=document.createElement('div');
     chip.className='chip'+(pl.username===auth.username?' me':'')+(s&&s.turn===pi&&!s.finished?' turn':'');
-    chip.textContent=(pl.avatar&&pl.avatar!=='default'?'':'')+pl.name+(pl.voiceActive?' 🎤':'')+(pl.connected===false?' ⚠️':'');
+    chip.textContent=(pl.avatarPhoto?'📷 ':'')+pl.name+(pl.voiceActive?' 🎤':'')+(pl.connected===false?' ⚠️':'');
     bar.appendChild(chip);
     const mic=$('seatMic'+pi);
     if(mic){
