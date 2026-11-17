@@ -62,7 +62,7 @@ input,select,textarea{width:100%;padding:11px;border-radius:11px;border:1px soli
 #chatRow{display:flex;gap:4px}#chatInput{flex:1;padding:8px;font-size:13px}
 #chatSend{border:0;background:#2a3b5c;color:#fff;border-radius:8px;padding:0 10px;font-weight:700;font-size:12px}
 .toast{position:fixed;left:50%;bottom:72px;transform:translateX(-50%);background:#1a2744;border:1px solid var(--line);padding:10px 12px;border-radius:10px;font-size:12px;z-index:50;display:none;max-width:90%;text-align:center}
-.coming{opacity:.6;font-style:italic}\n#roomPreview{min-height:150px;border:1px solid var(--line);border-radius:14px;padding:14px;background:radial-gradient(circle at 20% 15%,#6b4b25,#19233c 55%,#10182a);display:flex;gap:10px;flex-wrap:wrap;align-items:center}\n.room-item{background:#ffffff18;border:1px solid #ffffff35;border-radius:10px;padding:10px;font-size:12px}\n.avatar-photo{width:54px;height:54px;object-fit:cover;border-radius:50%;border:2px solid var(--gold);background:#243656}\n.brand{letter-spacing:.4px}
+.coming{opacity:.6;font-style:italic}\n#roomPreview{min-height:150px;border:1px solid var(--line);border-radius:14px;padding:14px;background:radial-gradient(circle at 20% 15%,#6b4b25,#19233c 55%,#10182a);display:flex;gap:10px;flex-wrap:wrap;align-items:center}\n.room-item{background:#ffffff18;border:1px solid #ffffff35;border-radius:10px;padding:10px;font-size:12px}\n.avatar-photo{width:54px;height:54px;object-fit:cover;border-radius:50%;border:2px solid var(--gold);background:#243656}\n.brand{letter-spacing:.4px}\n#board.skin-gold{border-color:#e8bd55;box-shadow:0 0 0 3px #9a6b24,0 10px 30px #0008}\n#board.skin-gold .track{background:#fff8df}\n#board.skin-nepal{border-color:#dc3545;box-shadow:0 0 0 3px #1c8b54,0 10px 30px #0008}\n#board.skin-nepal .center{background:conic-gradient(#dc3545 0 25%,#1c8b54 0 50%,#f3c744 0 75%,#fff 0)}\n#board.skin-neon{border-color:#a855f7;box-shadow:0 0 0 3px #06b6d4,0 0 24px #8b5cf6}\n#speakerControls{display:flex;align-items:center;gap:8px;justify-content:center;margin-top:4px}\n#speakerVolume{width:100px}
 </style>
 </head>
 <body>
@@ -175,7 +175,7 @@ input,select,textarea{width:100%;padding:11px;border-radius:11px;border:1px soli
     <div id="playersBar"></div>
     <div id="chatBox"></div>
     <div id="chatRow"><input id="chatInput" maxlength="200" placeholder="Text chat (free)"><button id="chatSend">Send</button></div>
-    <div id="controls"><div id="dice" class="disabled">⚄</div></div>
+    <div id="controls"><div id="dice" class="disabled">⚄</div></div>\n    <div id="speakerControls"><button class="btn sm secondary" id="btnSpeaker">🔊 Speaker on</button><label style="margin:0">Volume</label><input id="speakerVolume" type="range" min="0" max="1" step="0.05" value="1" aria-label="Speaker volume"></div>
     <button class="btn primary" id="btnStart" style="display:none">Start / Rematch</button>
     <button class="btn secondary" id="btnVote" style="display:none">Vote continue without DC</button>
   </div>
@@ -188,8 +188,9 @@ let lang = localStorage.getItem('ludo_lang') || 'en';
 let auth = JSON.parse(localStorage.getItem('ludo_auth') || 'null');
 let shop = null, pendingBuy = null;
 let socket = null, roomId = null, roomData = null, mySeat = -1;
-let localStream = null, micOn = false;
+let localStream = null, micOn = false, speakerOn = true, speakerVolume = 1;
 const peers = new Map();
+const pendingIce = new Map();
 const ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 let hb = null, lobbyT = null;
 
@@ -275,7 +276,8 @@ async function refreshLobby(){
     if(u.username===auth.username)return;
     const row=document.createElement('div');row.className='user-row';
     const st=u.status==='busy'?'busy':'online';
-    row.innerHTML=`<span class="dot ${st}"></span><div class="meta"><div class="name">${esc(u.displayName)}</div>
+    const avatar=u.avatarPhoto?`<img class="avatar-photo" style="width:38px;height:38px" src="${u.avatarPhoto}" alt="">`:'<span class="avatar-photo" style="width:38px;height:38px;display:grid;place-items:center">👤</span>';
+    row.innerHTML=`<span class="dot ${st}"></span>${avatar}<div class="meta"><div class="name">${esc(u.displayName||u.username)}</div>
       <div class="tag">${st} · Lv${u.level||1}${u.voiceActive?' · 🎤':''}</div></div>`;
     if(st!=='busy'){
       const btn=document.createElement('button');btn.className='btn sm secondary';btn.textContent='Request';
@@ -485,6 +487,8 @@ function state(){return roomData?.state||null;}
 function myTurn(){const s=state();return s&&s.turn===mySeat&&!s.finished;}
 function initBoard(){
   const b=$('board');b.innerHTML='';
+  b.classList.remove('skin-gold','skin-nepal','skin-neon');
+  b.classList.add('skin-'+(auth?.user?.equippedSkin||'default'));
   for(let r=0;r<15;r++)for(let c=0;c<15;c++){
     const el=document.createElement('div');el.className='cell';
     if(r>=6&&r<=8&&c>=6&&c<=8)el.classList.add('center');
@@ -573,6 +577,8 @@ function connectRoom(code,create,stake){
   socket.onclose=()=>{toast('Left room');closeAllPeers();setStatus('online');show('sc-lobby');refreshLobby();};
 }
 $('btnLeave').onclick=()=>{send({type:'leave'});try{socket?.close();}catch{};};
+$('btnSpeaker').onclick=()=>{speakerOn=!speakerOn;$('btnSpeaker').textContent=speakerOn?'🔊 Speaker on':'🔇 Speaker off';peers.forEach(e=>{if(e.audioEl)e.audioEl.muted=!speakerOn;});};
+$('speakerVolume').oninput=e=>{speakerVolume=Number(e.target.value);peers.forEach(x=>{if(x.audioEl)x.audioEl.volume=speakerVolume;});};
 $('btnStart').onclick=()=>send({type: state()?.finished ? 'rematch' : 'start'});
 $('btnVote').onclick=()=>send({type:'vote-continue'});
 $('dice').onclick=()=>send({type:'roll'});
@@ -592,7 +598,7 @@ function createPC(target,name){
   const pc=new RTCPeerConnection(ICE);const entry={pc,audioEl:null,name};peers.set(target,entry);
   if(localStream)localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));
   pc.onicecandidate=e=>{if(e.candidate)send({type:'webrtc-ice',to:target,candidate:e.candidate});};
-  pc.ontrack=e=>{let a=entry.audioEl;if(!a){a=document.createElement('audio');a.autoplay=true;a.playsInline=true;a.style.display='none';document.body.appendChild(a);entry.audioEl=a;}a.srcObject=e.streams[0];};
+  pc.ontrack=e=>{let a=entry.audioEl;if(!a){a=document.createElement('audio');a.autoplay=true;a.playsInline=true;a.style.display='none';document.body.appendChild(a);entry.audioEl=a;}a.srcObject=e.streams[0];a.muted=!speakerOn;a.volume=speakerVolume;a.play().catch(()=>toast('Tap speaker to enable audio'));};
   return pc;
 }
 async function connectToPeer(target,name){
@@ -601,12 +607,13 @@ async function connectToPeer(target,name){
   try{await ensureStream();localStream.getTracks().forEach(t=>{if(!pc.getSenders().find(s=>s.track===t))pc.addTrack(t,localStream);});
     const offer=await pc.createOffer();await pc.setLocalDescription(offer);send({type:'webrtc-offer',to:target,sdp:pc.localDescription});}catch(e){console.warn(e);}
 }
+async function flushPendingIce(from,pc){const q=pendingIce.get(from)||[];pendingIce.delete(from);for(const candidate of q){try{await pc.addIceCandidate(candidate);}catch{}}}
 async function handleSignal(m){
   if(!auth.user.voiceActive)return;const from=m.from;
   if(m.type==='webrtc-offer'){const pc=createPC(from,m.fromName);try{await ensureStream();localStream.getTracks().forEach(t=>{if(!pc.getSenders().find(s=>s.track===t))pc.addTrack(t,localStream);});
-    await pc.setRemoteDescription(m.sdp);const answer=await pc.createAnswer();await pc.setLocalDescription(answer);send({type:'webrtc-answer',to:from,sdp:pc.localDescription});}catch(e){console.warn(e);}}
-  else if(m.type==='webrtc-answer'){const e=peers.get(from);if(e)try{await e.pc.setRemoteDescription(m.sdp);}catch{}}
-  else if(m.type==='webrtc-ice'&&m.candidate){const e=peers.get(from);if(e)try{await e.pc.addIceCandidate(m.candidate);}catch{}}
+    await pc.setRemoteDescription(m.sdp);await flushPendingIce(from,pc);const answer=await pc.createAnswer();await pc.setLocalDescription(answer);send({type:'webrtc-answer',to:from,sdp:pc.localDescription});}catch(e){console.warn(e);}}
+  else if(m.type==='webrtc-answer'){const e=peers.get(from);if(e)try{await e.pc.setRemoteDescription(m.sdp);await flushPendingIce(from,e.pc);}catch{}}
+  else if(m.type==='webrtc-ice'&&m.candidate){const e=peers.get(from);if(e&&e.pc.remoteDescription)try{await e.pc.addIceCandidate(m.candidate);}catch{}else{const q=pendingIce.get(from)||[];q.push(m.candidate);pendingIce.set(from,q);}}
 }
 function closePeer(id){const e=peers.get(id);if(!e)return;try{e.pc.close();}catch{}e.audioEl?.remove();peers.delete(id);}
 function closeAllPeers(){[...peers.keys()].forEach(closePeer);}
