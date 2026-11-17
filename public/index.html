@@ -136,9 +136,7 @@ input,select,textarea{width:100%;padding:11px;border-radius:11px;border:1px soli
     <h1>मेरो व्यक्तिगत कोठा · My Room</h1>
     <p class="sub">आफ्नो फोटो, कोठाको सजावट र जितका ट्रफी यहाँ देखिन्छन्।</p>
     <div id="roomPreview"></div>
-    <label>अरू खेलाडीको कोठा हेर्न username</label><input id="visitRoomUser" placeholder="username">
-    <button class="btn secondary" id="btnVisitRoom">Visit player room</button>
-    <div id="visitedRoom"></div>
+    <p class="sub">सबै खेलाडीका फोटो, माइक र सजावट खेल्ने कोठामै देखिन्छन्।</p>
   </div>
   <div id="panel-profile" style="display:none">
     <h1>Profile</h1>
@@ -420,14 +418,6 @@ $('btnSaveProfile').onclick=async()=>{
   const j=await api('/api/user/'+auth.username+'/update-profile',{method:'POST',body:JSON.stringify({displayName:$('profileName').value.trim(),avatarPhoto,token:auth.token})});
   if(!j.ok)return toast(j.error||'Profile update failed');auth.user=j.user;save();renderProfile();renderMyRoom();toast('Profile saved');
 };
-$('btnVisitRoom').onclick=async()=>{
-  const username=$('visitRoomUser').value.trim().toLowerCase();if(!username)return;
-  const j=await api('/api/user/'+encodeURIComponent(username)+'/public');
-  if(!j.ok){$('visitedRoom').textContent=j.error||'Player not found';return;}
-  const p=j.profile;const photo=p.avatarPhoto?'<img class="avatar-photo" src="'+p.avatarPhoto+'">':'<span>👤</span>';
-  $('visitedRoom').innerHTML='<div class="card">'+photo+' <b>'+esc(p.displayName)+'</b><div class="sub">@'+esc(p.username)+' · Level '+p.level+' · Wins '+p.wins+' · Games '+(p.games||0)+'</div><div>'+(p.roomDecor||[]).map(x=>'<span class="room-item">'+esc(x)+'</span>').join('')+'</div></div>';
-};
-
 function renderProfile(){
   if(!auth)return;
   const u=auth.user;
