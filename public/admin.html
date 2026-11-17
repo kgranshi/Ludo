@@ -13,11 +13,18 @@ h1{font-size:20px}h2{font-size:15px;margin-top:18px}
 </style>
 </head>
 <body>
-<h1>Admin Panel</h1>
-<label>Admin secret</label>
-<input id="secret" type="password" placeholder="ADMIN_SECRET">
-<label>Save secret in this browser</label>
-<button id="saveSecretBtn" type="button">Save secret for this tab</button>
+<h1>G Ludo — Admin Panel</h1>
+<section id="loginCard" class="card">
+  <h2>Admin login</h2>
+  <label for="secret">Admin secret</label>
+  <input id="secret" type="password" autocomplete="current-password" placeholder="Cloudflare ADMIN_SECRET">
+  <button id="loginBtn" type="button">Unlock Admin Panel</button>
+  <p id="loginMsg" class="msg" role="status">Admin controls are locked until server verification succeeds.</p>
+</section>
+<div id="adminApp" hidden>
+<label>Session</label>
+<button id="saveSecretBtn" type="button">Keep unlocked for this tab</button>
+<button id="lockBtn" type="button" style="background:#8b3044;color:#fff">Lock Admin Panel</button>
 
 <h2>Payment proofs</h2>
 <button onclick="loadProofs()">Refresh proofs</button>
@@ -50,9 +57,13 @@ h1{font-size:20px}h2{font-size:15px;margin-top:18px}
 <textarea id="cfg" rows="10" placeholder='{"paymentMethods":[{"id":"esewa","label":"eSewa","detail":"98..."}]}'></textarea>
 <button onclick="saveCfg()">Save config</button>
 <pre class="msg" id="out"></pre>
+</div>
 
 <script>
 const secret = document.getElementById('secret');
+const loginCard = document.getElementById('loginCard');
+const adminApp = document.getElementById('adminApp');
+const loginMsg = document.getElementById('loginMsg');
 secret.value = sessionStorage.getItem('adm') || '';
 const out = document.getElementById('out');
 function toast(m){ out.textContent = m; }
@@ -64,7 +75,20 @@ async function api(path, opts={}){
   return j;
 }
 function el(tag, text, cls){const n=document.createElement(tag);if(text!==undefined)n.textContent=String(text);if(cls)n.className=cls;return n;}
-function saveSecret(){sessionStorage.setItem('adm',secret.value);toast('Secret saved for this tab only.');}
+function saveSecret(){sessionStorage.setItem('adm',secret.value);toast('Secret kept in this tab session.');}
+async function unlock(){
+  const value=secret.value.trim();
+  if(value.length<24){loginMsg.textContent='Invalid secret. Set ADMIN_SECRET in Cloudflare (minimum 24 characters).';return;}
+  loginMsg.textContent='Checking credentials…';
+  const previous=secret.value; secret.value=value;
+  const r=await fetch('/api/lobby/admin-inbox',{headers:{'X-Admin-Secret':value},cache:'no-store'});
+  const j=await r.json().catch(()=>({ok:false}));
+  if(!r.ok || !j.ok){secret.value=previous;loginMsg.textContent='Login failed: secret is incorrect or ADMIN_SECRET is not configured.';return;}
+  sessionStorage.setItem('adm',value);
+  adminApp.hidden=false; loginCard.hidden=true;
+  toast('Admin access verified.');
+}
+function lockAdmin(){sessionStorage.removeItem('adm');secret.value='';adminApp.hidden=true;loginCard.hidden=false;loginMsg.textContent='Admin panel locked.';}
 async function loadProofs(){
   const j=await api('/api/shop/proofs');
   const box=document.getElementById('proofs');box.replaceChildren();
@@ -102,6 +126,10 @@ async function saveCfg(){
   const j=await api('/api/shop/set',{method:'POST',body:JSON.stringify({secret:secret.value,config})});toast(JSON.stringify(j,null,2));
 }
 document.getElementById('saveSecretBtn').addEventListener('click',saveSecret);
+document.getElementById('loginBtn').addEventListener('click',unlock);
+document.getElementById('lockBtn').addEventListener('click',lockAdmin);
+secret.addEventListener('keydown',e=>{if(e.key==='Enter')unlock();});
+if(secret.value) unlock();
 </script>
 </body>
 </html>
