@@ -48,6 +48,7 @@ function publicUser(u) {
     ownedSkins: u.ownedSkins || ['default'],
     ownedAvatars: u.ownedAvatars || ['default'],
     roomDecor: u.roomDecor || [],
+    roomDecorEquipped: u.roomDecorEquipped || [],
     referralCode: u.referralCode,
     banned: !!u.banned,
     rankScore: (u.level || 1) * 1000 + (u.wins || 0)
@@ -351,7 +352,7 @@ export class UserAccount {
         ok: true,
         profile: {
           username: user.username, displayName: user.displayName, avatarPhoto: user.avatarPhoto || '', level: user.level || 1, wins: user.wins || 0, games: user.games || 0,
-          equippedAvatar: user.equippedAvatar, equippedSkin: user.equippedSkin, roomDecor: user.roomDecor || [],
+          equippedAvatar: user.equippedAvatar, equippedSkin: user.equippedSkin, roomDecor: user.roomDecorEquipped || [],
           voiceActive: !user.banned && (user.voiceUntil || 0) > Date.now(), rankScore: (user.level || 1) * 1000 + (user.wins || 0)
         }
       });
