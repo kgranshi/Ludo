@@ -29,6 +29,7 @@ function publicUser(u) {
   return {
     username: u.username,
     displayName: u.displayName,
+    avatarPhoto: u.avatarPhoto || '',
     status: u.status || 'offline',
     lastSeen: u.lastSeen || 0,
     voiceActive: !u.banned && voiceUntil > now,
@@ -326,13 +327,30 @@ export class UserAccount {
       return json({ ok: true, user: publicUser(user) });
     }
 
+    if (path === 'update-profile' && request.method === 'POST') {
+      if (!authed) return json({ ok: false, error: 'auth' }, 401);
+      const displayName = String(body.displayName || user.displayName || user.username).trim().slice(0, 18);
+      if (!displayName) return json({ ok: false, error: 'Display name required' }, 400);
+      if (body.avatarPhoto !== undefined) {
+        const photo = String(body.avatarPhoto || '');
+        if (photo && (!/^data:image\\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(photo) || photo.length > 205000)) {
+          return json({ ok: false, error: 'Photo must be PNG/JPG/WEBP/GIF and under 150KB' }, 400);
+        }
+        user.avatarPhoto = photo;
+      }
+      user.displayName = displayName;
+      await this.put(user);
+      await this.pushPresence(user);
+      return json({ ok: true, user: publicUser(user) });
+    }
+
     if (path === 'public' && request.method === 'GET') {
       // visit someone's room (no secrets)
       if (!user) return json({ ok: false, error: 'not found' }, 404);
       return json({
         ok: true,
         profile: {
-          username: user.username, displayName: user.displayName, level: user.level || 1, wins: user.wins || 0,
+          username: user.username, displayName: user.displayName, avatarPhoto: user.avatarPhoto || '', level: user.level || 1, wins: user.wins || 0, games: user.games || 0,
           equippedAvatar: user.equippedAvatar, equippedSkin: user.equippedSkin, roomDecor: user.roomDecor || [],
           voiceActive: !user.banned && (user.voiceUntil || 0) > Date.now(), rankScore: (user.level || 1) * 1000 + (user.wins || 0)
         }
@@ -403,7 +421,11 @@ export class UserAccount {
       if (body.skinId && (user.ownedSkins || []).includes(body.skinId)) user.equippedSkin = body.skinId;
       if (body.avatarId && (user.ownedAvatars || []).includes(body.avatarId)) user.equippedAvatar = body.avatarId;
       if (body.micId && (user.ownedMics || []).includes(body.micId)) user.equippedMic = body.micId;
-      if (Array.isArray(body.roomDecor)) user.roomDecor = body.roomDecor.slice(0, 20);
+      if (Array.isArray(body.roomDecor)) {
+        const allowed = new Set(user.roomDecor || []);
+        const requested = body.roomDecor.slice(0, 20).filter(id => allowed.has(id));
+        user.roomDecorEquipped = requested;
+      }
       await this.put(user); return json({ ok: true, user: publicUser(user) });
     }
 
@@ -788,6 +810,7 @@ export class LudoRoom {
     if (userJson.user.banned) return new Response('banned', { status: 403 });
     const voiceActive = !!userJson.user.voiceActive;
     const avatar = userJson.user.equippedAvatar || 'default';
+    const avatarPhoto = userJson.user.avatarPhoto || '';
     const skin = userJson.user.equippedSkin || 'default';
 
     let room = await this.ctx.storage.get('room');
@@ -807,11 +830,11 @@ export class LudoRoom {
       if (room.players.length >= 4) return new Response('Room full', { status: 409 });
       if (room.stake > 0 && (userJson.user.funTokens || 0) < room.stake) return new Response('Not enough fun tokens', { status: 402 });
       const seat = [0, 1, 2, 3].find(i => !room.players.some(p => p.seat === i));
-      player = { username, name, seat, tokens: [-1, -1, -1, -1], voiceActive, avatar, skin, connected: true };
+      player = { username, name, seat, tokens: [-1, -1, -1, -1], voiceActive, avatar, avatarPhoto, skin, connected: true };
       room.players.push(player);
     } else {
       // reconnect
-      player.name = name; player.voiceActive = voiceActive; player.avatar = avatar; player.skin = skin; player.connected = true;
+      player.name = name; player.voiceActive = voiceActive; player.avatar = avatar; player.avatarPhoto = avatarPhoto; player.skin = skin; player.connected = true;
       if (room.disconnects?.[username]) delete room.disconnects[username];
     }
     await this.ctx.storage.put('room', room);
@@ -823,7 +846,7 @@ export class LudoRoom {
 
     server.send(JSON.stringify({
       type: 'state', room: pubRoom(room), message: 'Joined room',
-      peers: room.players.filter(p => p.username !== username).map(p => ({ username: p.username, name: p.name, seat: p.seat, voiceActive: p.voiceActive, avatar: p.avatar }))
+      peers: room.players.filter(p => p.username !== username).map(p => ({ username: p.username, name: p.name, seat: p.seat, voiceActive: p.voiceActive, avatar: p.avatar, avatarPhoto: p.avatarPhoto || '' }))
     }));
     this.broadcast(room, 'Player joined', username);
     return new Response(null, { status: 101, webSocket: client });
@@ -960,7 +983,7 @@ export class LudoRoom {
       if (s.streak >= 3) { s.streak = 0; s.dice = 0; s.rolled = false; s.turn = (s.turn + 1) % room.players.length; }
       else {
         s.dice = d; s.rolled = true;
-        const can = room.players[seat].tokens.some(p => p < 0 ? (d === 1 || d === 6) : (p < 58 && p + d <= 58));
+        const can = room.players[seat].tokens.some(p => p < 0 ? d === 6 : (p < 58 && p + d <= 58));
         if (!can) { s.rolled = false; if (d !== 6) s.turn = (s.turn + 1) % room.players.length; else s.dice = 0; }
       }
     } else if (data.type === 'move') {
@@ -969,20 +992,25 @@ export class LudoRoom {
       const i = Number(data.token);
       if (!Number.isInteger(i) || i < 0 || i > 3) return reply('Bad token');
       const p = room.players[seat].tokens[i], d = s.dice;
-      if (p < 0 && d !== 1 && d !== 6) return reply('Need 1 or 6');
+      if (p < 0 && d !== 6) return reply('Need a 6 to bring a token out');
       if (p >= 0 && (p === 58 || p + d > 58)) return reply('Cannot move');
       const next = p < 0 ? 0 : p + d;
       room.players[seat].tokens[i] = next;
       let captured = false;
       if (next <= 51) {
         const idx = (seat * 13 + next) % 52;
-        if (![0, 8, 13, 21, 26, 34, 39, 47].includes(idx)) {
+        const safeSquares = [0, 8, 13, 21, 26, 34, 39, 47];
+        if (!safeSquares.includes(idx)) {
           for (let j = 0; j < room.players.length; j++) {
             if (j === seat) continue;
-            room.players[j].tokens = room.players[j].tokens.map(q => {
-              if (q >= 0 && q <= 51 && (room.players[j].seat * 13 + q) % 52 === idx) { captured = true; return -1; }
-              return q;
-            });
+            const opponents = room.players[j].tokens
+              .map((q, qi) => ({ q, qi }))
+              .filter(x => x.q >= 0 && x.q <= 51 && (room.players[j].seat * 13 + x.q) % 52 === idx);
+            // A pair of tokens forms a block and cannot be captured.
+            if (opponents.length === 1) {
+              room.players[j].tokens[opponents[0].qi] = -1;
+              captured = true;
+            }
           }
         }
       }
