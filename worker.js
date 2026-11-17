@@ -334,7 +334,7 @@ export class UserAccount {
       if (!displayName) return json({ ok: false, error: 'Display name required' }, 400);
       if (body.avatarPhoto !== undefined) {
         const photo = String(body.avatarPhoto || '');
-        if (photo && (!/^data:image\\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(photo) || photo.length > 205000)) {
+        if (photo && (!/^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(photo) || photo.length > 205000)) {
           return json({ ok: false, error: 'Photo must be PNG/JPG/WEBP/GIF and under 150KB' }, 400);
         }
         user.avatarPhoto = photo;
