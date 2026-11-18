@@ -3,25 +3,24 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<meta name="theme-color" content="#0f172a">
+<meta name="theme-color" content="#0b1326">
 <title>नेपाली लुडो — Nepali Ludo Royal</title>
-<meta name="description" content="Play authentic Nepali-style Ludo against smart AI bots, Pass & Play with friends locally, or compete live online with voice chat, Nepali quick chat, and custom Durbar themes.">
+<meta name="description" content="Play authentic Nepali-style Ludo against smart AI bots, Pass & Play with friends locally, or compete live online with voice chat, friends list, and custom Durbar themes.">
 <meta property="og:title" content="नेपाली लुडो — Nepali Ludo Royal">
-<meta property="og:description" content="Play Nepali-style Ludo offline vs Computer, Pass & Play, or live online multiplayer with voice and themes.">
+<meta property="og:description" content="Play Nepali-style Ludo offline vs Computer, Pass & Play, or live online multiplayer with friends and voice.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Mukta:wght@400;600;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#0d1424;
-  --surface:#151f35;
-  --surface-2:#1c2944;
+  --bg:#0b1326;
+  --surface:#142038;
+  --surface-2:#1c2b4a;
   --line:rgba(255,255,255,0.10);
-  --line-strong:rgba(255,255,255,0.18);
+  --line-strong:rgba(255,255,255,0.20);
   --txt:#f8fafc;
   --muted:#94a3b8;
   --gold:#e5a93c;
-  --gold-dark:#b87e14;
   --crimson:#c81e3a;
   --emerald:#10b981;
   --red:#dc2626;
@@ -32,146 +31,197 @@
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;min-height:100%;background:var(--bg);color:var(--txt);font-family:'Mukta',system-ui,-apple-system,sans-serif;line-height:1.45}
-body{background:radial-gradient(ellipse 90% 50% at 50% 0%,#1d2b4c 0%,#0d1424 65%);overflow-x:hidden}
+body{background:radial-gradient(ellipse 90% 55% at 50% 0%,#1d2e54 0%,#0b1326 68%);overflow-x:hidden}
+body.in-game{height:100dvh;overflow:hidden;background:
+  radial-gradient(circle at 50% 42%,rgba(37,99,235,0.16),transparent 65%),
+  repeating-linear-gradient(45deg,rgba(255,255,255,0.015) 0 18px,transparent 18px 36px),
+  #091326}
 h1,h2,h3,.brand,.font-display{font-family:'Outfit','Mukta',sans-serif;margin:0;text-wrap:balance}
 .num{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
 button,input,select{font-family:inherit}
 button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 
-/* Shell & 3-Zone Top Bar */
+/* Minimal Header (Hidden during active game for zero-scroll Ludo King Arena) */
 #shell{min-height:100dvh;display:flex;flex-direction:column}
+body.in-game #shell{height:100dvh;overflow:hidden}
 .topbar{
   position:sticky;top:0;z-index:40;
-  background:rgba(13,20,36,0.92);
-  backdrop-filter:blur(10px);
+  background:rgba(11,19,38,0.94);backdrop-filter:blur(10px);
   border-bottom:1px solid var(--line);
 }
+body.in-game .topbar{display:none}
 .topbar-inner{
-  max-width:1280px;margin:0 auto;padding:10px 16px;
-  display:flex;align-items:center;justify-content:space-between;gap:24px;
+  max-width:1180px;margin:0 auto;padding:10px 14px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
 }
+.top-left{display:flex;align-items:center;gap:10px;min-width:0}
+.menu-trigger{
+  position:relative;width:40px;height:40px;border-radius:10px;
+  background:var(--surface);border:1px solid var(--line-strong);color:var(--txt);
+  display:grid;place-items:center;font-size:20px;font-weight:800;cursor:pointer;flex:none;
+  transition:border-color .15s ease,background .15s ease;
+}
+.menu-trigger:hover{border-color:var(--gold);background:var(--surface-2)}
+.menu-badge{
+  position:absolute;top:-5px;right:-5px;min-width:18px;height:18px;padding:0 4px;
+  border-radius:999px;background:var(--emerald);color:#042014;font-size:10px;font-weight:800;
+  display:none;place-items:center;border:2px solid var(--bg);
+}
+.menu-badge.show{display:grid}
 .brand{
-  display:flex;align-items:center;gap:10px;
-  font-size:19px;font-weight:800;letter-spacing:-0.01em;
-  color:var(--txt);white-space:nowrap;flex-shrink:0;cursor:pointer;
-  background:none;border:0;padding:0;
+  display:flex;align-items:center;gap:9px;font-size:18px;font-weight:800;
+  color:var(--txt);white-space:nowrap;cursor:pointer;background:none;border:0;padding:0;
 }
-.brand-mark{width:30px;height:30px;border-radius:8px;object-fit:cover;border:1px solid rgba(229,169,60,0.5)}
-.nav-links{display:flex;align-items:center;gap:20px;overflow-x:auto;scrollbar-width:none}
-.nav-links::-webkit-scrollbar{display:none}
-.nav-link{
-  background:none;border:0;color:var(--muted);
-  font-size:14px;font-weight:600;padding:6px 2px;cursor:pointer;
-  white-space:nowrap;flex-shrink:0;position:relative;
-  transition:color .16s ease;
-}
-.nav-link:hover{color:var(--txt)}
-.nav-link.active{color:var(--gold)}
-.nav-link.active::after{
-  content:'';position:absolute;left:0;right:0;bottom:-2px;height:2px;
-  background:var(--gold);border-radius:2px;
-}
-.top-actions{display:flex;align-items:center;gap:12px;flex-shrink:0}
-.acct-summary{font-size:13px;color:var(--muted);white-space:nowrap}
-.acct-summary b{color:var(--gold);font-weight:700}
-.icon-btn{
-  background:var(--surface);border:1px solid var(--line);color:var(--txt);
-  height:36px;min-width:36px;padding:0 10px;border-radius:9px;
-  font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;
-  display:inline-flex;align-items:center;justify-content:center;gap:5px;
-  transition:background .15s ease,border-color .15s ease;
-}
-.icon-btn:hover{background:var(--surface-2);border-color:var(--line-strong)}
+.brand-mark{width:28px;height:28px;border-radius:8px;object-fit:cover;border:1px solid rgba(229,169,60,0.5)}
+.top-actions{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.acct-summary{font-size:12px;color:var(--muted);white-space:nowrap}
+.acct-summary b{color:var(--gold)}
+@media(max-width:600px){.acct-summary{display:none}}
 .cta-sm{
   background:var(--gold);color:#171206;border:0;border-radius:9px;
-  padding:8px 14px;font-size:13px;font-weight:800;cursor:pointer;
-  white-space:nowrap;flex-shrink:0;min-height:36px;
+  padding:8px 14px;font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap;min-height:36px;
 }
-.cta-sm:hover{filter:brightness(1.06)}
 
-@media(max-width:760px){
-  .topbar-inner{padding:8px 12px;gap:10px;flex-wrap:wrap}
-  .nav-links{order:3;width:100%;justify-content:space-between;gap:8px;border-top:1px solid var(--line);padding-top:6px}
-  .acct-summary{display:none}
+/* Slide-Out Hamburger Drawer (All Menus + Friends Online/Offline + Controls) */
+.drawer-backdrop{
+  position:fixed;inset:0;background:rgba(4,8,18,0.72);backdrop-filter:blur(4px);
+  z-index:90;display:none;
+}
+.drawer-backdrop.open{display:block}
+.drawer{
+  position:fixed;top:0;left:0;bottom:0;width:min(330px,88vw);
+  background:var(--surface);border-right:1px solid var(--line-strong);
+  z-index:95;display:flex;flex-direction:column;
+  transform:translateX(-105%);transition:transform .22s cubic-bezier(0.16,1,0.3,1);
+  box-shadow:16px 0 44px rgba(0,0,0,0.65);
+}
+.drawer.open{transform:translateX(0)}
+.drawer-head{
+  display:flex;align-items:center;justify-content:space-between;padding:14px 16px;
+  border-bottom:1px solid var(--line);
+}
+.drawer-body{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:16px}
+.drawer-user{
+  background:var(--surface-2);border:1px solid var(--line);border-radius:12px;
+  padding:12px;display:flex;align-items:center;gap:10px;
+}
+.drawer-nav{display:flex;flex-direction:column;gap:4px}
+.drawer-nav-btn{
+  width:100%;text-align:left;padding:10px 12px;border-radius:10px;border:0;
+  background:transparent;color:var(--txt);font-size:14px;font-weight:700;cursor:pointer;
+  display:flex;align-items:center;justify-content:space-between;min-height:42px;
+}
+.drawer-nav-btn:hover{background:rgba(255,255,255,0.06)}
+.drawer-nav-btn.active{background:rgba(229,169,60,0.16);color:var(--gold)}
+.drawer-sec-title{
+  font-size:12px;font-weight:800;color:var(--muted);margin-bottom:6px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.friend-search-row{display:flex;gap:6px;margin-bottom:8px}
+.friend-search-row input{min-height:36px;padding:6px 10px;font-size:13px}
+.friend-row{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:7px 9px;border-radius:10px;background:#0c1528;border:1px solid var(--line);margin-bottom:6px;
+}
+.status-dot{width:8px;height:8px;border-radius:50%;flex:none;display:inline-block}
+.status-dot.online{background:#10b981;box-shadow:0 0 6px #10b981}
+.status-dot.busy{background:#f59e0b}
+.status-dot.offline{background:#64748b}
+.drawer-foot{
+  padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;
 }
 
 /* Main Views */
-main{flex:1;width:100%;max-width:1280px;margin:0 auto;padding:20px 16px 32px}
+main{flex:1;width:100%;max-width:1180px;margin:0 auto;padding:18px 14px 28px}
+body.in-game main{max-width:none;padding:0;height:100dvh;overflow:hidden;display:flex;flex-direction:column}
 .view{display:none}
 .view.active{display:block}
+#view-game.active{
+  height:100dvh;display:flex;flex-direction:column;align-items:center;
+  justify-content:space-between;
+  padding:max(6px,env(safe-area-inset-top)) 8px max(8px,env(safe-area-inset-bottom));
+  overflow:hidden;gap:4px;
+}
 
 /* Buttons & Inputs */
 .btn{
-  display:inline-flex;align-items:center;justify-content:center;gap:8px;
-  padding:11px 18px;min-height:44px;border-radius:10px;border:0;
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:10px 16px;min-height:42px;border-radius:10px;border:0;
   font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;
-  transition:transform .12s ease,filter .15s ease,background .15s ease;
+  transition:transform .12s ease,filter .15s ease;
 }
 .btn:active{transform:scale(0.98)}
 .btn:disabled{opacity:0.45;cursor:not-allowed}
 .btn-primary{background:var(--gold);color:#191205}
 .btn-crimson{background:var(--crimson);color:#fff}
 .btn-secondary{background:var(--surface-2);color:var(--txt);border:1px solid var(--line)}
-.btn-secondary:hover:not(:disabled){border-color:var(--line-strong)}
 .btn-danger{background:#7f1d1d;color:#fee2e2}
-.btn-sm{min-height:34px;padding:6px 12px;font-size:13px;border-radius:8px}
+.btn-sm{min-height:32px;padding:5px 10px;font-size:12px;border-radius:8px}
 .btn-block{width:100%}
-
 .field{margin-bottom:12px}
 .field label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px}
 input,select{
-  width:100%;min-height:42px;padding:9px 12px;border-radius:10px;
+  width:100%;min-height:42px;padding:8px 12px;border-radius:10px;
   border:1px solid var(--line);background:#0b1120;color:var(--txt);font-size:14px;
 }
-.surface{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+.surface{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
 .sub{color:var(--muted);font-size:13px;margin:4px 0 0}
 
-/* Home / Mode Hub */
-.hero-grid{
-  display:grid;grid-template-columns:360px minmax(0,1fr);gap:24px;align-items:stretch;
-  margin-bottom:28px;
+/* Home / Unified Single Durbar Box */
+.home-wrap{max-width:820px;margin:6px auto 0}
+.home-hub-card{
+  background:linear-gradient(155deg,#1b2949,#10192e);
+  border:1.5px solid rgba(229,169,60,0.42);
+  border-radius:20px;
+  padding:20px;
+  box-shadow:0 18px 46px rgba(0,0,0,0.52),inset 0 1px 0 rgba(255,255,255,0.08);
+  display:grid;
+  grid-template-columns:minmax(0,250px) minmax(0,1fr);
+  gap:20px;
+  align-items:center;
 }
-.hero-showcase{
-  background:linear-gradient(160deg,#1a2642,#10182b);
-  border:1px solid var(--line);border-radius:18px;padding:24px;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+.home-crest-col{
+  display:flex;flex-direction:column;align-items:center;text-align:center;
+  padding-right:16px;border-right:1px solid var(--line);
 }
 .crest-wrap{
-  width:184px;height:184px;border-radius:24px;overflow:hidden;
-  border:2px solid rgba(229,169,60,0.45);box-shadow:0 16px 40px rgba(0,0,0,0.45);
-  margin-bottom:16px;background:#16223d;display:grid;place-items:center;
+  width:132px;height:132px;border-radius:20px;overflow:hidden;
+  border:2px solid rgba(229,169,60,0.5);box-shadow:0 12px 30px rgba(0,0,0,0.45);
+  margin-bottom:10px;background:#16223d;display:grid;place-items:center;
 }
 .crest-img{width:100%;height:100%;object-fit:cover;display:block}
-.hero-title{font-size:clamp(26px,3vw,34px);font-weight:800;letter-spacing:-0.02em;line-height:1.15}
-.hero-sub{color:var(--muted);font-size:14px;margin-top:8px;max-width:30ch}
+.hero-title{font-size:clamp(21px,2.8vw,27px);font-weight:800;line-height:1.15;color:#fde68a}
+.hero-sub{color:var(--muted);font-size:12px;margin-top:4px;max-width:26ch}
 .hero-stats{
-  display:flex;gap:16px;margin-top:18px;padding-top:16px;border-top:1px solid var(--line);
-  width:100%;justify-content:center;font-size:13px;color:var(--muted);
+  display:flex;gap:14px;margin-top:10px;padding-top:9px;border-top:1px solid var(--line);
+  width:100%;justify-content:center;font-size:11.5px;color:var(--muted);
 }
-.hero-stats b{color:var(--txt);display:block;font-size:16px}
-
-.modes-grid{
-  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;
+.hero-stats b{color:var(--txt);display:block;font-size:15px}
+.home-modes-col{display:flex;flex-direction:column;gap:10px;min-width:0}
+.home-modes-heading{font-size:13px;font-weight:800;color:var(--gold);letter-spacing:0.2px;margin:0}
+.home-select{
+  width:100%;min-height:48px;padding:10px 14px;border-radius:12px;
+  border:1.5px solid rgba(229,169,60,0.45);background:#0c1528;color:#fff;
+  font-size:15px;font-weight:700;cursor:pointer;
 }
-.mode-card{
-  background:var(--surface);border:1px solid var(--line);border-radius:16px;
-  padding:20px;display:flex;flex-direction:column;justify-content:space-between;gap:14px;
-  transition:border-color .16s ease,transform .16s ease;
+.home-select:focus{outline:none;border-color:var(--gold)}
+.home-mode-hint{font-size:12px;color:var(--muted);margin:0;min-height:16px}
+.home-play-btn{min-height:48px;font-size:15px;font-weight:800;border-radius:12px}
+@media(max-width:680px){
+  main{padding:10px 12px 14px}
+  .home-wrap{margin:2px auto 0}
+  .home-hub-card{grid-template-columns:1fr;gap:12px;padding:14px}
+  .home-crest-col{padding-right:0;padding-bottom:10px;border-right:0;border-bottom:1px solid var(--line)}
+  .crest-wrap{width:88px;height:88px;margin-bottom:8px;border-radius:16px}
+  .hero-stats{margin-top:8px;padding-top:8px}
 }
-.mode-card:hover{border-color:rgba(229,169,60,0.45);transform:translateY(-2px)}
-.mode-card.featured{background:linear-gradient(145deg,#232032,#151f35);border-color:rgba(229,169,60,0.32)}
-.mode-kicker{font-size:12px;font-weight:700;color:var(--gold);margin-bottom:4px}
-.mode-card h2{font-size:20px;font-weight:800;margin-bottom:6px}
-.mode-card p{font-size:13px;color:var(--muted);margin:0}
-.mode-actions{display:flex;gap:8px;flex-wrap:wrap}
-
-@media(max-width:960px){
-  .hero-grid{grid-template-columns:1fr;gap:16px}
-  .crest-wrap{width:128px;height:128px}
+.drawer-theme-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.drawer-theme-btn{
+  padding:8px 10px;border-radius:9px;border:1px solid var(--line-strong);
+  background:#0c1528;color:var(--txt);font-size:12px;font-weight:700;cursor:pointer;
+  display:flex;align-items:center;gap:6px;justify-content:center;
 }
-@media(max-width:600px){
-  .modes-grid{grid-template-columns:1fr}
-}
+.drawer-theme-btn.active{background:var(--gold);color:#191205;border-color:#fde68a}
 
 /* Segmented Controls */
 .seg{display:inline-flex;background:#0b1120;border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px}
@@ -181,376 +231,478 @@ input,select{
 }
 .seg button.active{background:var(--gold);color:#191205}
 
-/* Game Arena Layout */
-.arena{
-  display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start;
-}
-.board-stage{
-  display:flex;flex-direction:column;align-items:center;gap:10px;
-}
+/* ZERO-SCROLL LUDO ARENA */
 .seats-row{
-  width:100%;max-width:560px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;
+  width:min(96vw,500px);display:grid;grid-template-columns:1fr 1fr;gap:8px;flex:none;min-height:0;
 }
+.seats-row.empty{display:none}
 .seat-pod{
-  position:relative;display:flex;align-items:center;gap:10px;
-  background:var(--surface);border:1px solid var(--line);border-radius:12px;
-  padding:8px 10px;min-height:62px;transition:border-color .18s ease,box-shadow .18s ease;
+  position:relative;display:flex;align-items:center;gap:7px;min-width:0;
+  background:linear-gradient(145deg,#182644,#0f182d);
+  border:1.5px solid var(--line-strong);border-radius:12px;padding:5px 8px;
+  box-shadow:0 6px 16px rgba(0,0,0,0.4);transition:border-color .16s ease,box-shadow .16s ease;
 }
-.seat-pod.vacant{opacity:0.5;border-style:dashed}
-.seat-pod.turn{border-color:var(--gold);box-shadow:0 0 0 2px rgba(229,169,60,0.35)}
-.seat-pod.seat-0.turn{border-color:#ef4444;box-shadow:0 0 0 2px rgba(239,68,68,0.35)}
-.seat-pod.seat-1.turn{border-color:#10b981;box-shadow:0 0 0 2px rgba(16,185,129,0.35)}
-.seat-pod.seat-2.turn{border-color:#eab308;box-shadow:0 0 0 2px rgba(234,179,8,0.35)}
-.seat-pod.seat-3.turn{border-color:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,0.35)}
+.seat-pod.side-left{grid-column:1;justify-self:start;width:100%;max-width:242px}
+.seat-pod.side-right{grid-column:2;justify-self:end;width:100%;max-width:242px}
+.seat-pod.seat-0{border-color:rgba(220,38,38,0.45)}
+.seat-pod.seat-1{border-color:rgba(5,150,105,0.45)}
+.seat-pod.seat-2{border-color:rgba(234,179,8,0.45)}
+.seat-pod.seat-3{border-color:rgba(37,99,235,0.45)}
+.seat-pod.seat-0.turn{border-color:#ef4444;box-shadow:0 0 0 2px rgba(239,68,68,0.45),0 0 18px rgba(239,68,68,0.28)}
+.seat-pod.seat-1.turn{border-color:#10b981;box-shadow:0 0 0 2px rgba(16,185,129,0.45),0 0 18px rgba(16,185,129,0.28)}
+.seat-pod.seat-2.turn{border-color:#eab308;box-shadow:0 0 0 2px rgba(234,179,8,0.45),0 0 18px rgba(234,179,8,0.28)}
+.seat-pod.seat-3.turn{border-color:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,0.45),0 0 18px rgba(59,130,246,0.28)}
 .pod-avatar{
-  width:40px;height:40px;border-radius:50%;flex:none;object-fit:cover;
+  width:34px;height:34px;border-radius:50%;flex:none;object-fit:cover;
   border:2px solid var(--line-strong);display:grid;place-items:center;
-  font-weight:800;font-size:16px;background:var(--surface-2);color:#fff;
+  font-weight:800;font-size:14px;background:var(--surface-2);color:#fff;
 }
 .seat-0 .pod-avatar{border-color:var(--red)}
 .seat-1 .pod-avatar{border-color:var(--green)}
 .seat-2 .pod-avatar{border-color:var(--yellow)}
 .seat-3 .pod-avatar{border-color:var(--blue)}
 .pod-meta{flex:1;min-width:0}
-.pod-name{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pod-sub{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px}
-.pod-pips{display:flex;gap:3px;margin-top:3px}
-.pod-pip{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,0.16)}
+.pod-name{font-size:12px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
+.pod-icons-row{display:flex;align-items:center;gap:4px;margin-top:2px;flex-wrap:nowrap;overflow:hidden}
+.pod-pips{display:flex;gap:2px;flex:none}
+.pod-pip{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.2)}
 .pod-pip.home{background:var(--gold)}
+.pod-decor{font-size:11px;line-height:1;letter-spacing:1px;opacity:0.92;white-space:nowrap}
+.pod-mini-btn{
+  width:26px;height:26px;border-radius:7px;border:1px solid var(--line);
+  background:rgba(255,255,255,0.06);color:var(--txt);font-size:12px;
+  display:grid;place-items:center;cursor:pointer;flex:none;padding:0;
+}
+.pod-mini-btn.on{background:var(--crimson);border-color:var(--crimson)}
+.pod-mini-btn.locked{opacity:0.45;cursor:default}
 .pod-timer{
-  position:absolute;left:8px;right:8px;bottom:0;height:3px;background:rgba(255,255,255,0.08);
-  border-radius:3px;overflow:hidden;opacity:0;
+  position:absolute;left:6px;right:6px;bottom:0;height:3px;
+  background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden;opacity:0;
 }
 .seat-pod.turn .pod-timer{opacity:1}
 .pod-timer-fill{height:100%;width:100%;background:var(--gold);transform-origin:left;transition:transform .25s linear}
-.pod-mic{
-  width:32px;height:32px;border-radius:8px;border:1px solid var(--line);
-  background:var(--surface-2);color:var(--txt);cursor:pointer;display:grid;place-items:center;font-size:14px;
-}
-.pod-mic.on{background:var(--crimson);border-color:var(--crimson)}
-.pod-mic.locked{opacity:0.4;cursor:default}
 .emote-bubble{
-  position:absolute;top:-32px;left:50%;transform:translateX(-50%);
-  background:#fff;color:#0f172a;padding:4px 10px;border-radius:10px;
-  font-size:12px;font-weight:700;white-space:nowrap;z-index:30;
-  box-shadow:0 6px 18px rgba(0,0,0,0.45);animation:popUp .22s ease-out;
-  pointer-events:none;
+  position:absolute;top:-28px;left:50%;transform:translateX(-50%);
+  background:#fff;color:#0f172a;padding:3px 9px;border-radius:9px;
+  font-size:11px;font-weight:800;white-space:nowrap;z-index:35;
+  box-shadow:0 6px 16px rgba(0,0,0,0.45);animation:popUp .2s ease-out;pointer-events:none;
 }
 @keyframes popUp{from{opacity:0;transform:translate(-50%,6px) scale(0.9)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
 
-/* Ludo 15x15 Board */
+/* Ludo 15x15 Board — Strictly Constrained to Fit 100dvh */
 #boardWrap{
-  position:relative;
-  width:min(94vw,540px,calc(100dvh - 280px));
-  min-width:280px;
+  position:relative;flex:0 0 auto;
+  width:min(95vw,calc(100dvh - 224px),490px);
   aspect-ratio:1;
 }
 #board{
   width:100%;height:100%;
   display:grid;grid-template-columns:repeat(15,1fr);grid-template-rows:repeat(15,1fr);
-  background:#f7f1e3;border:4px solid #d4a64a;border-radius:14px;
-  position:relative;overflow:hidden;
-  box-shadow:0 18px 45px rgba(0,0,0,0.55);
+  background:#f7f1e3;border:4px solid #d4a64a;border-radius:12px;
+  position:relative;overflow:hidden;box-shadow:0 16px 40px rgba(0,0,0,0.58);
+  transition:border-color .25s ease,box-shadow .25s ease,background .25s ease;
 }
-#board.skin-gold{border-color:#eab308;box-shadow:0 0 0 3px #854d0e,0 18px 45px rgba(0,0,0,0.6)}
-#board.skin-gold .cell.track{background:#fef9e7}
-#board.skin-nepal{border-color:#c81e3a;box-shadow:0 0 0 3px #047857,0 18px 45px rgba(0,0,0,0.6)}
-#board.skin-neon{border-color:#f59e0b;box-shadow:0 0 0 3px #4338ca,0 18px 45px rgba(0,0,0,0.65)}
-#board.skin-neon .cell.track{background:#f1f5f9}
+/* Distinct Board Themes */
+#board.skin-gold{
+  background:#fef3c7;border-color:#facc15;
+  box-shadow:0 0 0 4px #92400e,0 0 26px rgba(234,179,8,0.35),0 18px 40px rgba(0,0,0,0.65);
+}
+#board.skin-gold .cell{border-color:rgba(146,64,14,0.2)}
+#board.skin-gold .cell.track{background:linear-gradient(135deg,#fffbeb,#fef3c7)}
+#board.skin-gold .cell.star-safe{background:#fde68a}
+#board.skin-gold .cell.star-safe .cell-mark{color:#92400e}
+#board.skin-gold .base-inner{background:#fffbeb;border:2px solid rgba(217,119,6,0.45)}
+#board.skin-gold .slot{background:#fef3c7}
+#board.skin-gold .center-home{border-color:#92400e}
+
+#board.skin-nepal{
+  background:#eff6ff;border-color:#be123c;
+  box-shadow:0 0 0 4px #1e3a8a,0 18px 40px rgba(0,0,0,0.65);
+}
+#board.skin-nepal .cell{border-color:rgba(30,58,138,0.18)}
+#board.skin-nepal .cell.track{background:#ffffff}
+#board.skin-nepal .cell.star-safe{background:#dbeafe}
+#board.skin-nepal .cell.star-safe .cell-mark{color:#be123c}
+#board.skin-nepal .base.red{background:#be123c}
+#board.skin-nepal .base.blue{background:#1e3a8a}
+#board.skin-nepal .base.green{background:#047857}
+#board.skin-nepal .base.yellow{background:#d97706}
+#board.skin-nepal .base-inner{border:2px solid rgba(30,58,138,0.28)}
+
+#board.skin-neon{
+  background:#090e1f;border-color:#f59e0b;
+  box-shadow:0 0 0 4px #06b6d4,0 0 28px rgba(245,158,11,0.45),0 18px 42px rgba(0,0,0,0.8);
+}
+#board.skin-neon .cell{border-color:rgba(148,163,184,0.2)}
+#board.skin-neon .cell.track{background:#17223b}
+#board.skin-neon .cell.star-safe{background:#312e81}
+#board.skin-neon .cell.star-safe .cell-mark{color:#fde047;opacity:0.95}
+#board.skin-neon .base.red{background:linear-gradient(135deg,#e11d48,#881337)}
+#board.skin-neon .base.green{background:linear-gradient(135deg,#10b981,#065f46)}
+#board.skin-neon .base.yellow{background:linear-gradient(135deg,#f59e0b,#92400e)}
+#board.skin-neon .base.blue{background:linear-gradient(135deg,#0284c7,#1e3a8a)}
+#board.skin-neon .base-inner{background:#0b1326;border:1.5px solid rgba(255,255,255,0.22);box-shadow:inset 0 0 14px rgba(0,0,0,0.7)}
+#board.skin-neon .slot{background:#16223d;border-color:rgba(255,255,255,0.3)}
+#board.skin-neon .center-home{border-color:#fde047}
+
+/* Himalayan Snow Peaks Theme (हिमाल) */
+#board.skin-himal{
+  background:linear-gradient(180deg,#e0f2fe,#f8fafc);border-color:#0284c7;
+  box-shadow:0 0 0 4px #0c4a6e,0 0 24px rgba(56,189,248,0.35),0 18px 40px rgba(0,0,0,0.68);
+}
+#board.skin-himal .cell{border-color:rgba(14,116,144,0.2)}
+#board.skin-himal .cell.track{background:linear-gradient(145deg,#ffffff,#e0f2fe)}
+#board.skin-himal .cell.star-safe{background:#bae6fd}
+#board.skin-himal .cell.star-safe .cell-mark{color:#0369a1}
+#board.skin-himal .base.red{background:linear-gradient(135deg,#e11d48,#9f1239)}
+#board.skin-himal .base.green{background:linear-gradient(135deg,#059669,#065f46)}
+#board.skin-himal .base.yellow{background:linear-gradient(135deg,#f59e0b,#b45309)}
+#board.skin-himal .base.blue{background:linear-gradient(135deg,#0284c7,#0c4a6e)}
+#board.skin-himal .base-inner{background:#f0f9ff;border:2px solid rgba(2,132,199,0.38)}
+#board.skin-himal .slot{background:#e0f2fe;border-color:rgba(3,105,161,0.32)}
+#board.skin-himal .center-home{border-color:#0369a1}
+
+/* Pahad Green Hills & Rhododendron Theme (पहाड) */
+#board.skin-pahad{
+  background:#ecfdf5;border-color:#15803d;
+  box-shadow:0 0 0 4px #7c2d12,0 18px 40px rgba(0,0,0,0.65);
+}
+#board.skin-pahad .cell{border-color:rgba(21,128,61,0.2)}
+#board.skin-pahad .cell.track{background:linear-gradient(145deg,#f7fee7,#ecfdf5)}
+#board.skin-pahad .cell.star-safe{background:#bbf7d0}
+#board.skin-pahad .cell.star-safe .cell-mark{color:#15803d}
+#board.skin-pahad .base.red{background:linear-gradient(135deg,#dc2626,#991b1b)}
+#board.skin-pahad .base.green{background:linear-gradient(135deg,#16a34a,#14532d)}
+#board.skin-pahad .base.yellow{background:linear-gradient(135deg,#eab308,#854d0e)}
+#board.skin-pahad .base.blue{background:linear-gradient(135deg,#0284c7,#1e3a8a)}
+#board.skin-pahad .base-inner{background:#f7fee7;border:2px solid rgba(21,128,61,0.35)}
+#board.skin-pahad .slot{background:#dcfce7}
+#board.skin-pahad .center-home{border-color:#14532d}
+
+/* Terai Golden Mustard Plains Theme (तराई) */
+#board.skin-terai{
+  background:#fefce8;border-color:#d97706;
+  box-shadow:0 0 0 4px #78350f,0 0 22px rgba(245,158,11,0.3),0 18px 40px rgba(0,0,0,0.65);
+}
+#board.skin-terai .cell{border-color:rgba(180,83,9,0.2)}
+#board.skin-terai .cell.track{background:linear-gradient(135deg,#fffbeb,#fef3c7)}
+#board.skin-terai .cell.star-safe{background:#fde047}
+#board.skin-terai .cell.star-safe .cell-mark{color:#92400e}
+#board.skin-terai .base.red{background:linear-gradient(135deg,#c2410c,#7c2d12)}
+#board.skin-terai .base.green{background:linear-gradient(135deg,#15803d,#14532d)}
+#board.skin-terai .base.yellow{background:linear-gradient(135deg,#f59e0b,#b45309)}
+#board.skin-terai .base.blue{background:linear-gradient(135deg,#1d4ed8,#1e3a8a)}
+#board.skin-terai .base-inner{background:#fffbeb;border:2px solid rgba(217,119,6,0.42)}
+#board.skin-terai .slot{background:#fef08a}
+#board.skin-terai .center-home{border-color:#92400e}
+
+/* Kathmandu Malla Durbar Wood & Brick Theme (दरबार) */
+#board.skin-durbar{
+  background:#f5ebd6;border-color:#b45309;
+  box-shadow:0 0 0 5px #451a03,0 18px 42px rgba(0,0,0,0.75);
+}
+#board.skin-durbar .cell{border-color:rgba(120,53,15,0.24)}
+#board.skin-durbar .cell.track{background:#fbf5e9}
+#board.skin-durbar .cell.star-safe{background:#fde68a}
+#board.skin-durbar .cell.star-safe .cell-mark{color:#7c2d12}
+#board.skin-durbar .base.red{background:linear-gradient(135deg,#991b1b,#450a0a)}
+#board.skin-durbar .base.green{background:linear-gradient(135deg,#0f766e,#134e4a)}
+#board.skin-durbar .base.yellow{background:linear-gradient(135deg,#d97706,#78350f)}
+#board.skin-durbar .base.blue{background:linear-gradient(135deg,#1e40af,#172554)}
+#board.skin-durbar .base-inner{background:#fdf8ee;border:2px solid #92400e;box-shadow:inset 0 2px 6px rgba(69,26,3,0.28)}
+#board.skin-durbar .slot{background:#f3e3c3;border-color:rgba(120,53,15,0.35)}
+#board.skin-durbar .center-home{border-color:#78350f}
 
 .cell{
-  border:0.5px solid rgba(15,23,42,0.14);
-  min-width:0;min-height:0;
+  border:0.5px solid rgba(15,23,42,0.14);min-width:0;min-height:0;
   display:flex;flex-wrap:wrap;align-items:center;justify-content:center;
-  position:relative;padding:1px;gap:1px;
+  position:relative;padding:1px;gap:1px;overflow:visible;
 }
 .cell.track{background:#fffdf7}
-.cell.lane.red{background:#dc2626}
-.cell.lane.green{background:#059669}
-.cell.lane.yellow{background:#eab308}
-.cell.lane.blue{background:#2563eb}
-.cell.start-red{background:#dc2626;color:#fff}
-.cell.start-green{background:#059669;color:#fff}
-.cell.start-yellow{background:#eab308;color:#1c1917}
-.cell.start-blue{background:#2563eb;color:#fff}
+.cell.lane.red{background:#dc2626}.cell.lane.green{background:#059669}
+.cell.lane.yellow{background:#eab308}.cell.lane.blue{background:#2563eb}
+.cell.start-red{background:#dc2626;color:#fff}.cell.start-green{background:#059669;color:#fff}
+.cell.start-yellow{background:#eab308;color:#1c1917}.cell.start-blue{background:#2563eb;color:#fff}
 .cell.star-safe{background:#ede4cf}
-.cell-mark{
-  position:absolute;inset:0;display:grid;place-items:center;
-  font-size:clamp(10px,2vw,16px);pointer-events:none;opacity:0.85;font-weight:800;
-}
+.cell-mark{position:absolute;inset:0;display:grid;place-items:center;font-size:clamp(9px,2vw,15px);pointer-events:none;opacity:0.85;font-weight:800}
 .cell.star-safe .cell-mark{color:#a16207;opacity:0.75}
 .cell.center-cell{border:0;background:transparent}
-
 .center-home{
   position:absolute;left:40%;top:40%;width:20%;height:20%;z-index:2;
   background:conic-gradient(from -45deg,#059669 0 90deg,#eab308 90deg 180deg,#2563eb 180deg 270deg,#dc2626 270deg 360deg);
-  border:1.5px solid rgba(15,23,42,0.3);
-  display:flex;flex-wrap:wrap;align-items:center;justify-content:center;padding:3px;
+  border:1.5px solid rgba(15,23,42,0.3);display:flex;flex-wrap:wrap;align-items:center;justify-content:center;padding:3px;overflow:visible;
 }
-.center-crown{
-  position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;
-  font-size:clamp(16px,3.2vw,24px);filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5));opacity:0.9;
-}
-
-/* Bases */
-.base{
-  position:absolute;width:40%;height:40%;padding:5.5%;z-index:1;
-  display:grid;place-items:center;
-}
+.center-crown{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;font-size:clamp(14px,3vw,22px)}
+.base{position:absolute;width:40%;height:40%;padding:5.5%;z-index:1;display:grid;place-items:center}
 .base-inner{
-  width:100%;height:100%;background:#fffdf8;border-radius:14px;padding:12%;
+  width:100%;height:100%;background:#fffdf8;border-radius:12px;padding:12%;
   display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:14%;
-  box-shadow:inset 0 2px 6px rgba(0,0,0,0.18);
+  box-shadow:inset 0 2px 5px rgba(0,0,0,0.18);overflow:visible;
 }
-.base.red{top:0;left:0;background:#dc2626}
-.base.green{top:0;right:0;background:#059669}
-.base.yellow{right:0;bottom:0;background:#eab308}
-.base.blue{left:0;bottom:0;background:#2563eb}
-.slot{
-  border-radius:50%;display:grid;place-items:center;position:relative;
-  border:2px solid rgba(15,23,42,0.18);background:#f1ede2;
-}
-.base.red .slot{border-color:rgba(220,38,38,0.45)}
-.base.green .slot{border-color:rgba(5,150,105,0.45)}
-.base.yellow .slot{border-color:rgba(202,138,4,0.5)}
-.base.blue .slot{border-color:rgba(37,99,235,0.45)}
+.base.red{top:0;left:0;background:#dc2626}.base.green{top:0;right:0;background:#059669}
+.base.yellow{right:0;bottom:0;background:#eab308}.base.blue{left:0;bottom:0;background:#2563eb}
+.slot{border-radius:50%;display:grid;place-items:center;position:relative;border:2px solid rgba(15,23,42,0.18);background:#f1ede2;overflow:visible}
+.base.red .slot{border-color:rgba(220,38,38,0.45)}.base.green .slot{border-color:rgba(5,150,105,0.45)}
+.base.yellow .slot{border-color:rgba(202,138,4,0.5)}.base.blue .slot{border-color:rgba(37,99,235,0.45)}
 
-/* Sculpted Gotis (Tokens) */
 .piece{
-  width:78%;height:78%;border-radius:50%;border:2px solid #fff;
-  cursor:default;z-index:5;padding:0;position:relative;
+  width:95%;height:95%;border-radius:50%;border:2.5px solid #ffffff;cursor:default;z-index:7;padding:0;position:relative;
   display:grid;place-items:center;
-  box-shadow:0 3px 6px rgba(0,0,0,0.45),inset 0 -3px 4px rgba(0,0,0,0.28),inset 0 3px 4px rgba(255,255,255,0.42);
-  transition:transform .12s ease;
+  transform:translateY(-3px);
+  box-shadow:0 5px 0 rgba(10,16,32,0.52),0 9px 14px rgba(0,0,0,0.58),inset 0 3px 5px rgba(255,255,255,0.62),inset 0 -3px 4px rgba(0,0,0,0.34);
+  transition:transform .14s ease,box-shadow .14s ease;
+}
+.slot .piece{width:102%;height:102%;transform:translateY(-3.5px)}
+.piece::before{
+  content:'';position:absolute;top:12%;left:18%;width:38%;height:22%;border-radius:50%;
+  background:rgba(255,255,255,0.54);transform:rotate(-24deg);pointer-events:none;
 }
 .piece::after{
-  content:'';width:46%;height:46%;border-radius:50%;
-  border:1.5px solid rgba(255,255,255,0.75);
-  background:rgba(255,255,255,0.18);
+  content:'';width:50%;height:50%;border-radius:50%;
+  border:2px solid rgba(255,255,255,0.88);background:rgba(255,255,255,0.22);
+  box-shadow:inset 0 2px 3px rgba(0,0,0,0.22);
 }
-.piece.red{background:radial-gradient(circle at 32% 28%,#f87171,#b91c1c)}
-.piece.green{background:radial-gradient(circle at 32% 28%,#34d399,#047857)}
-.piece.yellow{background:radial-gradient(circle at 32% 28%,#fde047,#ca8a04)}
-.piece.blue{background:radial-gradient(circle at 32% 28%,#60a5fa,#1d4ed8)}
+.piece.red{background:radial-gradient(circle at 32% 24%,#fca5a5,#ef4444 45%,#991b1b);box-shadow:0 5px 0 #7f1d1d,0 9px 14px rgba(0,0,0,0.55),inset 0 3px 5px rgba(255,255,255,0.58)}
+.piece.green{background:radial-gradient(circle at 32% 24%,#6ee7b7,#10b981 45%,#065f46);box-shadow:0 5px 0 #064e3b,0 9px 14px rgba(0,0,0,0.55),inset 0 3px 5px rgba(255,255,255,0.58)}
+.piece.yellow{background:radial-gradient(circle at 32% 24%,#fef08a,#eab308 48%,#a16207);box-shadow:0 5px 0 #713f12,0 9px 14px rgba(0,0,0,0.55),inset 0 3px 5px rgba(255,255,255,0.62)}
+.piece.blue{background:radial-gradient(circle at 32% 24%,#93c5fd,#3b82f6 45%,#1e3a8a);box-shadow:0 5px 0 #1e3a8a,0 9px 14px rgba(0,0,0,0.55),inset 0 3px 5px rgba(255,255,255,0.58)}
 .piece.pick{
-  cursor:pointer;z-index:10;
-  animation:tokenPick .7s infinite alternate;
-  box-shadow:0 0 0 3px #fff,0 0 12px rgba(229,169,60,0.95);
+  cursor:pointer;z-index:16;animation:tokenPick .65s infinite alternate;
+  box-shadow:0 6px 0 rgba(15,23,42,0.55),0 0 0 3px #ffffff,0 0 16px rgba(250,204,21,0.98);
 }
-@keyframes tokenPick{from{transform:scale(1)}to{transform:scale(1.18)}}
-.cell.multi-2 .piece{width:46%;height:46%}
-.cell.multi-3 .piece,.cell.multi-4 .piece{width:44%;height:44%}
-.center-home .piece{width:24%;height:24%;z-index:6}
+@keyframes tokenPick{
+  from{transform:translateY(-4px) scale(1.06)}
+  to{transform:translateY(-8px) scale(1.22)}
+}
+.cell.multi-2 .piece{width:54%;height:54%;transform:translateY(-2px);border-width:2px}
+.cell.multi-3 .piece,.cell.multi-4 .piece{width:48%;height:48%;transform:translateY(-2px);border-width:1.8px}
+.center-home .piece{width:28%;height:28%;z-index:8;transform:translateY(-2px)}
 
-/* Sidebar Controls & Tactile Dice */
-.arena-side{display:flex;flex-direction:column;gap:12px}
-.dice-panel{
-  background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;
-  display:flex;align-items:center;justify-content:space-between;gap:14px;
+/* Unified Ludo-King Style Bottom Control Dock */
+#bottomDock{
+  width:min(96vw,500px);flex:none;
+  background:linear-gradient(180deg,#1a2b52,#0f1a34);
+  border:2px solid rgba(229,169,60,0.5);border-radius:16px;
+  padding:6px 8px;display:flex;align-items:center;justify-content:space-between;gap:6px;
+  box-shadow:0 10px 26px rgba(0,0,0,0.55);position:relative;
 }
-.turn-readout{flex:1;min-width:0}
-.turn-label{font-size:12px;color:var(--muted)}
-.turn-player{font-size:18px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.turn-hint{font-size:12px;color:var(--gold);margin-top:2px;min-height:18px}
+#bottomDock .btn-sm{min-height:30px;padding:4px 7px;font-size:11px}
+.dock-left,.dock-right{display:flex;align-items:center;gap:5px;flex:1;min-width:0}
+.dock-right{justify-content:flex-end}
+.dock-turn{min-width:0;flex:1}
+.dock-turn-name{font-size:12.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fde68a}
+.dock-turn-hint{font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.invite-profile-card{
+  display:flex;align-items:center;gap:12px;padding:12px;border-radius:14px;
+  background:#0c1528;border:1px solid rgba(229,169,60,0.35);margin-bottom:14px;text-align:left;
+}
+.invite-avatar{
+  width:52px;height:52px;border-radius:50%;object-fit:cover;flex:none;
+  border:2px solid var(--gold);background:var(--surface-2);display:grid;place-items:center;font-size:22px;font-weight:800;
+}
 
 #diceBtn{
-  width:72px;height:72px;border-radius:16px;border:2px solid rgba(255,255,255,0.85);
-  background:linear-gradient(145deg,#ffffff,#e2e8f0);
-  display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);
-  padding:11px;gap:4px;cursor:pointer;flex:none;
-  box-shadow:0 8px 20px rgba(0,0,0,0.45),inset 0 -4px 0 #cbd5e1;
-  transition:transform .12s ease,box-shadow .12s ease,opacity .15s ease;
+  width:58px;height:58px;border-radius:14px;border:2px solid rgba(255,255,255,0.4);
+  background:radial-gradient(circle at 50% 35%,#223661,#0f1a33);
+  display:grid;place-items:center;padding:0;cursor:pointer;flex:none;
+  box-shadow:0 6px 18px rgba(0,0,0,0.55),inset 0 1px 0 rgba(255,255,255,0.18);
+  transition:transform .14s ease,opacity .15s ease,border-color .2s ease,box-shadow .2s ease;
 }
 #diceBtn:hover:not(:disabled){transform:translateY(-2px)}
-#diceBtn:active:not(:disabled){transform:translateY(1px)}
-#diceBtn:disabled{opacity:0.45;cursor:not-allowed}
-#diceBtn.rolling{animation:diceTumble .36s cubic-bezier(.3,1.4,.5,1)}
-@keyframes diceTumble{
-  0%{transform:rotate(0deg) scale(1)}
-  35%{transform:rotate(-18deg) scale(1.12)}
-  70%{transform:rotate(14deg) scale(1.06)}
-  100%{transform:rotate(0deg) scale(1)}
+#diceBtn:disabled{opacity:0.48;cursor:not-allowed}
+#diceBtn.tint-0{border-color:#f87171;box-shadow:0 0 14px rgba(239,68,68,0.45),0 6px 16px rgba(0,0,0,0.5)}
+#diceBtn.tint-1{border-color:#34d399;box-shadow:0 0 14px rgba(16,185,129,0.45),0 6px 16px rgba(0,0,0,0.5)}
+#diceBtn.tint-2{border-color:#fde047;box-shadow:0 0 14px rgba(234,179,8,0.45),0 6px 16px rgba(0,0,0,0.5)}
+#diceBtn.tint-3{border-color:#60a5fa;box-shadow:0 0 14px rgba(59,130,246,0.45),0 6px 16px rgba(0,0,0,0.5)}
+.dice-scene{
+  width:42px;height:42px;perspective:340px;display:grid;place-items:center;pointer-events:none;
 }
+.dice-scene.tossing{animation:diceHop .48s cubic-bezier(.25,.9,.35,1)}
+@keyframes diceHop{
+  0%{transform:scale(1) translateY(0)}
+  35%{transform:scale(1.22) translateY(-7px)}
+  72%{transform:scale(0.95) translateY(2px)}
+  100%{transform:scale(1) translateY(0)}
+}
+.dice-cube{
+  width:40px;height:40px;position:relative;transform-style:preserve-3d;
+  transition:transform .48s cubic-bezier(0.18,0.88,0.28,1.04);
+}
+.dice-face{
+  position:absolute;inset:0;border-radius:9px;
+  background:linear-gradient(145deg,#ffffff 0%,#e2e8f0 70%,#cbd5e1 100%);
+  border:1.5px solid #cbd5e1;
+  box-shadow:inset 0 2px 3px rgba(255,255,255,0.9),inset 0 -2px 4px rgba(15,23,42,0.16);
+  display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);
+  padding:5px;gap:2px;backface-visibility:hidden;
+}
+.dice-face.f1{transform:rotateY(0deg) translateZ(20px)}
+.dice-face.f2{transform:rotateY(90deg) translateZ(20px)}
+.dice-face.f3{transform:rotateX(90deg) translateZ(20px)}
+.dice-face.f4{transform:rotateX(-90deg) translateZ(20px)}
+.dice-face.f5{transform:rotateY(-90deg) translateZ(20px)}
+.dice-face.f6{transform:rotateY(180deg) translateZ(20px)}
 .pip{width:100%;height:100%;border-radius:50%;background:transparent}
-.pip.on{background:#0f172a;box-shadow:inset 0 1px 2px rgba(0,0,0,0.6)}
-#diceBtn.tint-0{border-color:#fca5a5}
-#diceBtn.tint-1{border-color:#6ee7b7}
-#diceBtn.tint-2{border-color:#fde047}
-#diceBtn.tint-3{border-color:#93c5fd}
+.pip.on{background:#0f172a;box-shadow:inset 0 1px 1px rgba(0,0,0,0.45)}
+.dice-face.f1 .pip.on{background:#c81e3a;transform:scale(1.28)}
 
-/* Quick Emotes & Chat */
-.quick-emotes{display:flex;flex-wrap:wrap;gap:6px}
-.emote-btn{
-  background:var(--surface-2);border:1px solid var(--line);color:var(--txt);
-  border-radius:8px;padding:5px 9px;font-size:12px;cursor:pointer;
+/* Floating Chat & Quick Emote Popover (Zero permanent height) */
+.chat-popover{
+  position:fixed;left:50%;bottom:80px;transform:translateX(-50%);
+  width:min(94vw,420px);background:var(--surface);border:1px solid var(--line-strong);
+  border-radius:16px;padding:14px;z-index:75;display:none;
+  box-shadow:0 20px 50px rgba(0,0,0,0.7);
 }
-.emote-btn:hover{border-color:var(--gold)}
-.chat-log{
-  height:140px;overflow-y:auto;background:#0b1120;border:1px solid var(--line);
-  border-radius:10px;padding:8px 10px;font-size:13px;display:flex;flex-direction:column;gap:4px;
-}
-.chat-row{display:flex;gap:8px;margin-top:8px}
-.chat-row input{flex:1}
-
-@media(max-width:960px){
-  .arena{grid-template-columns:1fr;gap:12px}
-  #boardWrap{width:min(94vw,430px)}
-  .chat-log{height:90px}
-}
+.chat-popover.open{display:block}
+.quick-emotes{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
+.emote-btn{background:var(--surface-2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:5px 8px;font-size:12px;cursor:pointer}
+.chat-log{height:110px;overflow-y:auto;background:#0b1120;border:1px solid var(--line);border-radius:10px;padding:8px;font-size:12px;display:flex;flex-direction:column;gap:4px}
+.chat-row{display:flex;gap:6px;margin-top:8px}
+.chat-row input{min-height:36px;padding:6px 10px;font-size:13px}
 
 /* Directory / Shop / Market / Profile Grids */
 .grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
 .grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
 @media(max-width:860px){.grid-2,.grid-3{grid-template-columns:1fr}}
-
-.item-card{
-  background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;
-  display:flex;flex-direction:column;justify-content:space-between;gap:12px;
-}
-.item-head{display:flex;align-items:center;gap:12px}
-.item-thumb{
-  width:52px;height:52px;border-radius:12px;object-fit:cover;flex:none;
-  background:var(--surface-2);border:1px solid var(--line);display:grid;place-items:center;font-size:24px;
-}
-.user-row{
-  display:flex;align-items:center;justify-content:space-between;gap:12px;
-  padding:12px 14px;background:var(--surface);border:1px solid var(--line);border-radius:12px;
-}
+.item-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;justify-content:space-between;gap:10px}
+.item-head{display:flex;align-items:center;gap:10px}
+.item-thumb{width:48px;height:48px;border-radius:12px;object-fit:cover;flex:none;background:var(--surface-2);border:1px solid var(--line);display:grid;place-items:center;font-size:22px}
+.user-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;background:var(--surface);border:1px solid var(--line);border-radius:12px}
 .user-row + .user-row{margin-top:8px}
 
 /* Modals */
-.modal-backdrop{
-  position:fixed;inset:0;background:rgba(6,10,20,0.78);backdrop-filter:blur(6px);
-  z-index:80;display:none;align-items:center;justify-content:center;padding:16px;
-}
+.modal-backdrop{position:fixed;inset:0;background:rgba(6,10,20,0.8);backdrop-filter:blur(6px);z-index:100;display:none;align-items:center;justify-content:center;padding:16px}
 .modal-backdrop.open{display:flex}
-.modal{
-  width:100%;max-width:440px;background:var(--surface);border:1px solid var(--line-strong);
-  border-radius:18px;padding:22px;box-shadow:0 24px 60px rgba(0,0,0,0.65);max-height:90dvh;overflow-y:auto;
-}
-.modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.modal{width:100%;max-width:420px;background:var(--surface);border:1px solid var(--line-strong);border-radius:18px;padding:20px;box-shadow:0 24px 60px rgba(0,0,0,0.65);max-height:90dvh;overflow-y:auto}
+.modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .close-x{background:none;border:0;color:var(--muted);font-size:22px;cursor:pointer;padding:4px 8px}
-
-.podium-row{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:10px 12px;border-radius:10px;background:#0b1120;border:1px solid var(--line);margin-top:8px;
-}
+.podium-row{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:10px;background:#0b1120;border:1px solid var(--line);margin-top:8px}
 .podium-row.winner{border-color:var(--gold);background:rgba(229,169,60,0.12)}
 
-/* Toast */
-.toast{
-  position:fixed;left:50%;bottom:24px;transform:translateX(-50%);
-  background:#1e293b;border:1px solid var(--gold);color:#fff;
-  padding:10px 16px;border-radius:10px;font-size:13px;font-weight:600;
-  z-index:100;display:none;max-width:92vw;text-align:center;box-shadow:0 12px 28px rgba(0,0,0,0.5);
-}
-
-@media(prefers-reduced-motion:reduce){
-  .piece.pick,#diceBtn.rolling,.emote-bubble{animation:none}
-}
+.toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:#1e293b;border:1px solid var(--gold);color:#fff;padding:9px 14px;border-radius:10px;font-size:12px;font-weight:700;z-index:120;display:none;max-width:90vw;text-align:center;box-shadow:0 12px 28px rgba(0,0,0,0.5)}
+@media(prefers-reduced-motion:reduce){.piece.pick,.dice-scene.tossing,.emote-bubble{animation:none}.dice-cube{transition:none}}
 </style>
 </head>
 <body>
 <div id="shell">
+  <!-- COMPACT HEADER (HIDDEN DURING GAMEPLAY) -->
   <header class="topbar">
     <div class="topbar-inner">
-      <button class="brand" id="brandBtn" type="button">
-        <img class="brand-mark" src="/assets/nepali_ludo_crest.jpg" alt="Nepali Ludo" onerror="this.style.display='none'">
-        <span id="brandText">नेपाली लुडो</span>
-      </button>
-      <nav class="nav-links" aria-label="Primary">
-        <button class="nav-link active" data-tab="play" type="button" id="navPlay">खेल</button>
-        <button class="nav-link" data-tab="online" type="button" id="navOnline">अनलाइन</button>
-        <button class="nav-link" data-tab="shop" type="button" id="navShop">पसल</button>
-        <button class="nav-link" data-tab="market" type="button" id="navMarket">बजार</button>
-        <button class="nav-link" data-tab="profile" type="button" id="navProfile">प्रोफाइल</button>
-      </nav>
+      <div class="top-left">
+        <button class="menu-trigger" id="menuBtn" type="button" aria-label="Open menu">
+          ≡
+          <span class="menu-badge num" id="menuBadge"></span>
+        </button>
+        <button class="brand" id="brandBtn" type="button">
+          <img class="brand-mark" src="/assets/nepali_ludo_crest.jpg" alt="Nepali Ludo" onerror="this.style.display='none'">
+          <span id="brandText">नेपाली लुडो</span>
+        </button>
+      </div>
       <div class="top-actions">
         <span class="acct-summary num" id="acctSummary"></span>
-        <button class="icon-btn" id="soundBtn" type="button" title="Toggle sound">🔊</button>
-        <button class="icon-btn" id="langBtn" type="button">EN</button>
         <button class="cta-sm" id="authTopBtn" type="button">लगइन</button>
       </div>
     </div>
   </header>
 
-  <main>
-    <!-- PLAY HUB VIEW -->
-    <section id="view-play" class="view active">
-      <div class="hero-grid">
-        <div class="hero-showcase">
-          <div class="crest-wrap">
-            <img class="crest-img" src="/assets/nepali_ludo_crest.jpg" alt="Nepali Ludo Emblem" onerror="this.parentElement.innerHTML='<span style=&quot;font-size:64px&quot;>🎲</span>'">
-          </div>
-          <h1 class="hero-title" id="heroTitle">नेपाली लुडो दरबार</h1>
-          <p class="hero-sub" id="heroSub">कम्प्युटर, पास एण्ड प्ले वा अनलाइन मल्टिप्लेयर — मौलिक नेपाली शैलीमा लुडो खेल्नुहोस्।</p>
-          <div class="hero-stats num" id="heroStats">
-            <div><b id="statWins">0</b><span data-i18n="winsLbl">जित</span></div>
-            <div><b id="statLv">1</b><span data-i18n="lvLbl">तह</span></div>
-            <div><b id="statFun">0</b><span data-i18n="funLbl">फन टोकन</span></div>
-          </div>
+  <!-- SLIDE-OUT HAMBURGER MENU DRAWER -->
+  <div class="drawer-backdrop" id="drawerBackdrop"></div>
+  <aside class="drawer" id="menuDrawer" aria-label="Main Menu">
+    <div class="drawer-head">
+      <div style="font-weight:800;font-size:16px" id="drawerTitle">मेनु र साथीहरू (Menu)</div>
+      <button class="close-x" id="drawerCloseBtn" type="button">&times;</button>
+    </div>
+    <div class="drawer-body">
+      <div class="drawer-user" id="drawerUserCard">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:800;font-size:14px" id="drawerUserName">अतिथि खेलाडी</div>
+          <div class="sub num" id="drawerUserMeta" style="font-size:11px">अनलाइन खेल्न लगइन गर्नुहोस्</div>
         </div>
+        <button class="btn btn-primary btn-sm" id="drawerAuthBtn" type="button">लगइन</button>
+      </div>
 
-        <div class="modes-grid">
-          <article class="mode-card featured">
-            <div>
-              <div class="mode-kicker" data-i18n="botKicker">तुरुन्तै खेल्नुहोस्</div>
-              <h2 data-i18n="botTitle">कम्प्युटर सँग (vs Computer)</h2>
-              <p data-i18n="botDesc">लगइन बिना नै २, ३ वा ४ खेलाडीको खेल सुरु गर्नुहोस्। क्लासिक वा छिटो (Quick) मोड छान्नुहोस्।</p>
-            </div>
-            <div class="mode-actions">
-              <button class="btn btn-primary" id="openBotSetupBtn" type="button" data-i18n="playBotBtn">कम्प्युटर सँग खेल्नुहोस्</button>
-            </div>
-          </article>
+      <nav class="drawer-nav" aria-label="All Views">
+        <button class="drawer-nav-btn active" data-tab="play" type="button" id="dNavPlay"><span>🎲 खेल (Play)</span></button>
+        <button class="drawer-nav-btn" data-tab="online" type="button" id="dNavOnline"><span>🌐 अनलाइन लबी (Online)</span></button>
+        <button class="drawer-nav-btn" data-tab="shop" type="button" id="dNavShop"><span>🛍️ नेपाली पसल (Shop)</span></button>
+        <button class="drawer-nav-btn" data-tab="market" type="button" id="dNavMarket"><span>🏪 आधिकारिक बजार (Market)</span></button>
+        <button class="drawer-nav-btn" data-tab="profile" type="button" id="dNavProfile"><span>👤 मेरो कोठा र प्रोफाइल</span></button>
+      </nav>
 
-          <article class="mode-card">
-            <div>
-              <div class="mode-kicker" data-i18n="passKicker">एउटै डिभाइसमा</div>
-              <h2 data-i18n="passTitle">पास एण्ड प्ले (Pass &amp; Play)</h2>
-              <p data-i18n="passDesc">परिवार वा साथीहरूसँग एउटै फोन वा स्क्रिनमा २ देखि ४ जना मिलेर खेल्नुहोस्।</p>
-            </div>
-            <div class="mode-actions">
-              <button class="btn btn-crimson" id="openPassSetupBtn" type="button" data-i18n="playPassBtn">पास एण्ड प्ले सुरु</button>
-            </div>
-          </article>
-
-          <article class="mode-card">
-            <div>
-              <div class="mode-kicker" data-i18n="qmKicker">लाइभ मल्टिप्लेयर</div>
-              <h2 data-i18n="qmTitle">छिटो अनलाइन खेल (Quick Match)</h2>
-              <p data-i18n="qmDesc">अनलाइन खेलाडीहरूसँग तुरुन्तै म्याच जोड्नुहोस् — क्लासिक वा छिटो नियममा।</p>
-            </div>
-            <div class="mode-actions">
-              <button class="btn btn-secondary" id="quick2Btn" type="button" data-i18n="qm2Btn">२ खेलाडी म्याच</button>
-              <button class="btn btn-secondary" id="quick4Btn" type="button" data-i18n="qm4Btn">४ खेलाडी म्याच</button>
-            </div>
-          </article>
-
-          <article class="mode-card">
-            <div>
-              <div class="mode-kicker" data-i18n="privKicker">निजी कोठा</div>
-              <h2 data-i18n="privTitle">साथीहरूसँग कोठा (Private Room)</h2>
-              <p data-i18n="privDesc">कोठा बनाएर ६-अक्षरको कोड सेयर गर्नुहोस् वा कोठा कोड हालेर छिर्नुहोस्।</p>
-            </div>
-            <div class="mode-actions">
-              <button class="btn btn-secondary" id="createRoomBtn" type="button" data-i18n="createRoomBtn">कोठा बनाउनुहोस्</button>
-              <button class="btn btn-secondary" id="joinRoomBtn" type="button" data-i18n="joinRoomBtn">कोडले छिर्नुहोस्</button>
-            </div>
-          </article>
+      <!-- BOARD STYLE SELECTOR INSIDE ≡ DRAWER -->
+      <div style="border-top:1px solid var(--line);padding-top:12px">
+        <div class="drawer-sec-title">
+          <span data-i18n="themeHeading">बोर्डको शैली (Board Style)</span>
+        </div>
+        <div class="drawer-theme-grid" id="drawerThemePicker">
+          <button type="button" class="drawer-theme-btn active" data-skin="default">♟️ Classic</button>
+          <button type="button" class="drawer-theme-btn" data-skin="gold">👑 Dhaka Gold</button>
+          <button type="button" class="drawer-theme-btn" data-skin="nepal">🚩 नेपाल झण्डा</button>
+          <button type="button" class="drawer-theme-btn" data-skin="neon">🪔 तिहार झिलिमिली</button>
+          <button type="button" class="drawer-theme-btn" data-skin="himal">🏔️ हिमाल</button>
+          <button type="button" class="drawer-theme-btn" data-skin="pahad">⛰️ पहाड</button>
+          <button type="button" class="drawer-theme-btn" data-skin="terai">🌾 तराई</button>
+          <button type="button" class="drawer-theme-btn" data-skin="durbar">🏯 दरबार</button>
         </div>
       </div>
 
-      <div class="surface">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
-          <div>
-            <h3 style="font-size:16px" data-i18n="themeHeading">बोर्डको शैली छान्नुहोस्</h3>
-            <p class="sub" data-i18n="themeSub">तपाईंले खोल्नुभएको वा किन्नुभएको नेपाली बोर्ड थिम</p>
+      <!-- LIVE FRIENDS PANEL INSIDE ≡ DRAWER (ONLY WHEN LOGGED IN) -->
+      <div id="drawerFriendsSection" style="display:none;border-top:1px solid var(--line);padding-top:12px">
+        <div class="drawer-sec-title">
+          <span data-i18n="friendsTitle">साथीहरू (Friends)</span>
+          <span class="num" id="friendsOnlineSummary" style="color:var(--emerald)"></span>
+        </div>
+        <div class="friend-search-row">
+          <input id="friendSearchInput" placeholder="साथी खोज्नुहोस् (username)">
+          <button class="btn btn-secondary btn-sm" id="friendSearchBtn" type="button">खोज / थप्नु</button>
+        </div>
+        <div id="friendSearchResults"></div>
+        <div id="friendReqList"></div>
+        <div id="friendList"></div>
+      </div>
+
+      <!-- IN-GAME ACTIONS (ONLY VISIBLE WHILE IN A MATCH) -->
+      <div id="drawerGameActions" style="display:none;border-top:1px solid var(--line);padding-top:12px">
+        <div class="drawer-sec-title"><span>खेल नियन्त्रण (Match)</span></div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <button class="btn btn-secondary btn-sm" id="drawerCopyCodeBtn" type="button" style="display:none">कोठा कोड कपी</button>
+          <button class="btn btn-danger btn-sm" id="drawerLeaveBtn" type="button">खेलबाट बाहिर निस्कनुहोस्</button>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button class="btn btn-secondary btn-sm" id="soundBtn" type="button" style="flex:1">🔊 Sound</button>
+      <button class="btn btn-secondary btn-sm" id="langBtn" type="button" style="flex:1">🌐 EN / ने</button>
+    </div>
+  </aside>
+
+  <main>
+    <!-- SINGLE UNIFIED HOME HUB BOX (NO CARDS BELOW IT) -->
+    <section id="view-play" class="view active">
+      <div class="home-wrap">
+        <div class="home-hub-card">
+          <div class="home-crest-col">
+            <div class="crest-wrap">
+              <img class="crest-img" src="/assets/nepali_ludo_crest.jpg" alt="Nepali Ludo Emblem" onerror="this.parentElement.innerHTML='<span style=&quot;font-size:52px&quot;>🎲</span>'">
+            </div>
+            <h1 class="hero-title" id="heroTitle">नेपाली लुडो दरबार</h1>
+            <p class="hero-sub" id="heroSub">मौलिक नेपाली शैलीको रमाइलो लुडो खेल</p>
+            <div class="hero-stats num">
+              <div><b id="statWins">0</b><span data-i18n="winsLbl">जित</span></div>
+              <div><b id="statLv">1</b><span data-i18n="lvLbl">तह</span></div>
+              <div><b id="statFun">0</b><span data-i18n="funLbl">फन</span></div>
+            </div>
           </div>
-          <div class="seg" id="quickThemePicker">
-            <button type="button" data-skin="default" class="active">Classic</button>
-            <button type="button" data-skin="gold">Dhaka Gold</button>
-            <button type="button" data-skin="nepal">Nepal</button>
-            <button type="button" data-skin="neon">Tihar</button>
+
+          <div class="home-modes-col">
+            <label for="homeGameSelect" class="home-modes-heading" data-i18n="pickGameLbl">खेल छान्नुहोस्</label>
+            <select id="homeGameSelect" class="home-select" aria-label="Choose Game">
+              <option value="bot" id="optGameBot">🤖 कम्प्युटर (Computer)</option>
+              <option value="pass" id="optGamePass">👥 पास प्ले (Pass & Play)</option>
+              <option value="online" id="optGameOnline">🌐 अनलाइन (Online)</option>
+            </select>
+            <p class="home-mode-hint" id="homeModeHint">कम्प्युटर (AI) सँग २ देखि ४ खेलाडी खेल्नुहोस्</p>
+            <button class="btn btn-primary btn-block home-play-btn" id="homePlayBtn" type="button" data-i18n="homePlayBtn">🎲 खेल्नुहोस् (Play)</button>
           </div>
         </div>
       </div>
@@ -563,29 +715,27 @@ input,select{
           <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px">
             <div>
               <h2 style="font-size:18px" data-i18n="onlineTitle">अनलाइन खेलाडीहरू</h2>
-              <p class="sub" data-i18n="onlineSub">खेल्नको लागि अनुरोध पठाउनुहोस् वा आएको अनुरोध स्वीकार गर्नुहोस्</p>
+              <p class="sub" data-i18n="onlineSub">खेल्न चुनौती पठाउनुहोस् वा साथी बनाउनुहोस्</p>
             </div>
             <button class="btn btn-primary btn-sm" id="btnDaily" type="button" data-i18n="dailyBtn">+५० दैनिक फन</button>
           </div>
-
           <div class="field">
             <label data-i18n="stakeLbl">बाँजी / Stake (फन टोकन)</label>
             <select id="stakeSel">
-              <option value="0">0 (रमाइलो मात्र / Fun Only)</option>
+              <option value="0">0 (रमाइलो मात्र)</option>
               <option value="10">10 Fun</option>
               <option value="20" selected>20 Fun</option>
               <option value="50">50 Fun</option>
               <option value="100">100 Fun</option>
             </select>
           </div>
-
           <div id="reqArea" style="margin-bottom:12px"></div>
           <div id="userList"></div>
         </div>
 
         <div class="surface">
           <h2 style="font-size:18px;margin-bottom:4px" data-i18n="lbTitle">शीर्ष खेलाडी (Leaderboard)</h2>
-          <p class="sub" style="margin-bottom:12px" data-i18n="lbSub">तह र जितका आधारमा उत्कृष्ट नेपाली लुडो खेलाडीहरू</p>
+          <p class="sub" style="margin-bottom:12px" data-i18n="lbSub">तह र जितका आधारमा उत्कृष्ट खेलाडीहरू</p>
           <div id="leaderboardList"></div>
         </div>
       </div>
@@ -593,14 +743,12 @@ input,select{
 
     <!-- SHOP VIEW -->
     <section id="view-shop" class="view">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px">
-        <div>
-          <h1 style="font-size:22px" data-i18n="shopTitle">नेपाली पसल (Shop)</h1>
-          <p class="sub" data-i18n="shopSub">सिक्का (Coins) बाट बोर्ड स्किन, अवतार र कोठाका सामान किन्नुहोस्।</p>
-        </div>
+      <div style="margin-bottom:14px">
+        <h1 style="font-size:21px" data-i18n="shopTitle">नेपाली पसल (Shop)</h1>
+        <p class="sub" data-i18n="shopSub">सिक्का (Coins) बाट बोर्ड स्किन, अवतार, माइक र कोठाका सामान किन्नुहोस्।</p>
       </div>
       <div id="shopSoft"></div>
-      <div class="surface" style="margin-top:20px">
+      <div class="surface" style="margin-top:18px">
         <h2 style="font-size:17px;margin-bottom:6px" data-i18n="voiceShopTitle">लाइभ भ्वाइस प्याकेज (Live Voice)</h2>
         <div id="shopVoice"></div>
         <div id="payBox" style="display:none;margin-top:14px;border-top:1px solid var(--line);padding-top:14px">
@@ -612,39 +760,29 @@ input,select{
       </div>
     </section>
 
-    <!-- MARKETPLACE VIEW -->
+    <!-- BUYER-ONLY ADMIN MARKETPLACE VIEW -->
     <section id="view-market" class="view">
-      <div class="grid-2">
-        <div class="surface">
-          <h2 style="font-size:18px" data-i18n="mktTitle">खेलाडी बजार (Marketplace)</h2>
-          <p class="sub" style="margin-bottom:12px" data-i18n="mktSub">फन टोकन वा सिक्कामा स्किन र सामान किनबेच गर्नुहोस्।</p>
-          <div id="marketList"></div>
+      <div class="surface">
+        <div style="margin-bottom:14px">
+          <h1 style="font-size:21px" data-i18n="mktTitle">आधिकारिक बजार (Admin Market)</h1>
+          <p class="sub" data-i18n="mktSub">एडमिनले राखेका विशेष स्किन, अवतार, माइक र कोठा सजावट फन टोकन वा सिक्कामा किन्नुहोस्।</p>
         </div>
-        <div class="surface">
-          <h2 style="font-size:18px;margin-bottom:10px" data-i18n="sellTitle">आफ्नो सामान बेच्नुहोस्</h2>
-          <div class="field"><label>Type</label>
-            <select id="sellType"><option value="skin">Skin</option><option value="mic">Mic</option><option value="avatar">Avatar</option><option value="room">Room Decor</option></select>
-          </div>
-          <div class="field"><label>Item ID</label><input id="sellId" placeholder="gold"></div>
-          <div class="field"><label>Price Fun</label><input id="sellFun" type="number" value="0" min="0"></div>
-          <div class="field"><label>Price Coins</label><input id="sellCoins" type="number" value="10" min="0"></div>
-          <button class="btn btn-primary btn-block" id="btnListSell" type="button" data-i18n="listSaleBtn">बिक्रीमा राख्नुहोस्</button>
-        </div>
+        <div id="marketList" class="grid-3"></div>
       </div>
     </section>
 
     <!-- PROFILE & MY ROOM VIEW -->
     <section id="view-profile" class="view">
-      <div id="profileLoggedOut" class="surface" style="max-width:460px;margin:20px auto;text-align:center">
+      <div id="profileLoggedOut" class="surface" style="max-width:440px;margin:20px auto;text-align:center">
         <h2 style="font-size:20px" data-i18n="needLoginTitle">प्रोफाइल र अनलाइन खाता</h2>
-        <p class="sub" style="margin:8px 0 16px" data-i18n="needLoginSub">अंक सुरक्षित राख्न, साथीहरूसँग अनलाइन खेल्न र कोठा सजाउन लगइन वा खाता खोल्नुहोस्।</p>
+        <p class="sub" style="margin:8px 0 16px" data-i18n="needLoginSub">अंक सुरक्षित राख्न, साथी बनाउन र अनलाइन खेल्न लगइन वा नयाँ खाता खोल्नुहोस्।</p>
         <button class="btn btn-primary" id="profLoginBtn" type="button" data-i18n="loginRegBtn">लगइन / नयाँ खाता</button>
       </div>
       <div id="profileLoggedIn" style="display:none">
         <div class="grid-2">
           <div class="surface">
             <h2 style="font-size:18px;margin-bottom:12px" data-i18n="myRoomTitle">मेरो व्यक्तिगत कोठा</h2>
-            <div id="roomPreview" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:16px;border-radius:12px;background:#0b1120;border:1px solid var(--line);margin-bottom:14px"></div>
+            <div id="roomPreview" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px;border-radius:12px;background:#0b1120;border:1px solid var(--line);margin-bottom:12px"></div>
             <div id="profCard"></div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
               <button class="btn btn-secondary btn-sm" id="btnShareRef" type="button" data-i18n="copyRefBtn">रेफरल लिंक कपी</button>
@@ -652,20 +790,19 @@ input,select{
               <button class="btn btn-danger btn-sm" id="btnLogout" type="button" data-i18n="logoutBtn">लगआउट</button>
             </div>
           </div>
-
           <div class="surface">
             <h2 style="font-size:18px;margin-bottom:10px" data-i18n="editProfTitle">नाम, फोटो र सजावट</h2>
             <div class="field"><label data-i18n="dispNameLbl">देखाउने नाम (Display Name)</label><input id="profileName" maxlength="18"></div>
             <div class="field"><label data-i18n="photoLbl">प्रोफाइल फोटो (अधिकतम 150KB)</label><input id="profilePhoto" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></div>
             <button class="btn btn-primary btn-block" id="btnSaveProfile" type="button" data-i18n="saveProfBtn">प्रोफाइल सुरक्षित गर्नुहोस्</button>
-            <h3 style="font-size:15px;margin:16px 0 8px" data-i18n="equipTitle">स्किन र अवतार छान्नुहोस्</h3>
+            <h3 style="font-size:14px;margin:14px 0 8px" data-i18n="equipTitle">स्किन र अवतार छान्नुहोस्</h3>
             <div id="equipBox" style="display:flex;flex-wrap:wrap;gap:6px"></div>
-            <h3 style="font-size:15px;margin:16px 0 8px" data-i18n="decorTitle">कोठाका सजावट सामान</h3>
+            <h3 style="font-size:14px;margin:14px 0 8px" data-i18n="decorTitle">कोठाका सजावट सामान</h3>
             <div id="decorBox"></div>
-            <h3 style="font-size:15px;margin:16px 0 8px" data-i18n="giftVoiceTitle">साथीलाई भ्वाइस उपहार</h3>
+            <h3 style="font-size:14px;margin:14px 0 8px" data-i18n="giftVoiceTitle">साथीलाई भ्वाइस उपहार</h3>
             <div style="display:flex;gap:8px">
               <input id="giftTo" placeholder="username">
-              <input id="giftHours" type="number" value="1" step="0.5" min="0.1" style="width:90px">
+              <input id="giftHours" type="number" value="1" step="0.5" min="0.1" style="width:84px">
               <button class="btn btn-secondary btn-sm" id="btnGift" type="button" data-i18n="sendGiftBtn">पठाउनुहोस्</button>
             </div>
           </div>
@@ -673,86 +810,98 @@ input,select{
       </div>
     </section>
 
-    <!-- GAME ARENA VIEW -->
+    <!-- ZERO-SCROLL GAME ARENA VIEW -->
     <section id="view-game" class="view">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;flex-wrap:wrap">
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-          <span class="font-display" style="font-weight:800;font-size:17px" id="arenaRoomTitle">लुडो मैदान</span>
-          <span class="sub num" id="arenaRoomMeta" style="margin:0"></span>
-          <button class="btn btn-secondary btn-sm" id="copyRoomCodeBtn" type="button" style="display:none">कोड कपी</button>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <button class="btn btn-secondary btn-sm" id="btnAddBot" type="button" style="display:none">+ बोट थप्नुहोस्</button>
-          <button class="btn btn-primary btn-sm" id="btnStart" type="button" style="display:none">खेल सुरु</button>
-          <button class="btn btn-secondary btn-sm" id="btnVote" type="button" style="display:none">जारी राख्नुहोस्</button>
-          <button class="btn btn-danger btn-sm" id="btnLeave" type="button" data-i18n="leaveBtn">बाहिर निस्कनुहोस्</button>
-        </div>
+      <!-- Top Corner Player Rooms (Rendered ONLY for active top-side players) -->
+      <div class="seats-row" id="topSeats"></div>
+
+      <!-- Center 15x15 Ludo Board -->
+      <div id="boardWrap">
+        <div id="board"></div>
       </div>
 
-      <div class="arena">
-        <div class="board-stage">
-          <div class="seats-row" id="topSeats"></div>
-          <div id="boardWrap">
-            <div id="board"></div>
+      <!-- Bottom Corner Player Rooms (Rendered ONLY for active bottom-side players) -->
+      <div class="seats-row" id="bottomSeats"></div>
+
+      <!-- Unified Bottom Control Dock -->
+      <div id="bottomDock">
+        <div class="dock-left">
+          <button class="menu-trigger" id="inGameMenuBtn" type="button" title="Menu & Friends" style="width:36px;height:36px;font-size:18px">
+            ≡
+            <span class="menu-badge num" id="inGameMenuBadge"></span>
+          </button>
+          <div class="dock-turn">
+            <div class="dock-turn-name" id="turnPlayerName">—</div>
+            <div class="dock-turn-hint" id="turnHint">पासा थिच्नुहोस्</div>
           </div>
-          <div class="seats-row" id="bottomSeats"></div>
         </div>
 
-        <aside class="arena-side">
-          <div class="dice-panel">
-            <div class="turn-readout">
-              <div class="turn-label" data-i18n="currentTurnLbl">अहिलेको पालो</div>
-              <div class="turn-player" id="turnPlayerName">—</div>
-              <div class="turn-hint" id="turnHint">पासा थिच्नुहोस्</div>
-            </div>
-            <button id="diceBtn" type="button" aria-label="Roll dice" disabled></button>
-          </div>
+        <button id="diceBtn" type="button" aria-label="Roll dice" disabled></button>
 
-          <div class="surface" style="padding:14px">
-            <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:8px" data-i18n="quickChatLbl">नेपाली छिटो सन्देश</div>
-            <div class="quick-emotes" id="quickEmotes"></div>
+        <div class="dock-right">
+          <button class="btn btn-secondary btn-sm" id="btnInviteRoom" type="button" style="display:none" title="Invite Friends">📩 साथी</button>
+          <button class="btn btn-secondary btn-sm" id="btnAddBot" type="button" style="display:none">+बोट</button>
+          <button class="btn btn-primary btn-sm" id="btnStart" type="button" style="display:none">सुरु</button>
+          <button class="btn btn-secondary btn-sm" id="btnVote" type="button" style="display:none">जारी</button>
+          <div id="speakerControls" style="display:none;align-items:center;gap:4px">
+            <button class="pod-mini-btn" id="btnSpeaker" type="button" title="Toggle voice speaker">🔊</button>
           </div>
-
-          <div class="surface" style="padding:14px">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-              <span style="font-size:12px;font-weight:700;color:var(--muted)" data-i18n="chatLbl">कुराकानी (Chat)</span>
-              <div id="speakerControls" style="display:none;align-items:center;gap:6px">
-                <button class="btn btn-secondary btn-sm" id="btnSpeaker" type="button">🔊</button>
-                <input id="speakerVolume" type="range" min="0" max="1" step="0.05" value="1" style="width:70px;min-height:20px;padding:0">
-              </div>
-            </div>
-            <div class="chat-log" id="chatBox"></div>
-            <div class="chat-row">
-              <input id="chatInput" maxlength="200" placeholder="सन्देश लेख्नुहोस्...">
-              <button class="btn btn-primary btn-sm" id="chatSend" type="button">पठाउ</button>
-            </div>
-          </div>
-        </aside>
+          <button class="pod-mini-btn" id="chatPopoverBtn" type="button" title="Quick Emotes & Chat" style="width:32px;height:32px;font-size:14px">💬</button>
+          <button class="pod-mini-btn" id="btnExitGame" type="button" title="Leave / Exit" style="width:32px;height:32px;font-size:14px">🚪</button>
+        </div>
       </div>
     </section>
   </main>
 </div>
 
-<!-- AUTH MODAL -->
-<div class="modal-backdrop" id="authModal">
-  <div class="modal">
-    <div class="modal-head">
-      <h2 id="authModalTitle">लगइन / नयाँ खाता</h2>
-      <button class="close-x" type="button" onclick="closeModal('authModal')">&times;</button>
+<!-- FLOATING CHAT & EMOTE POPOVER -->
+<div class="chat-popover" id="chatPopover">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+    <span style="font-size:13px;font-weight:800" id="chatPopTitle">नेपाली छिटो सन्देश र कुराकानी</span>
+    <div style="display:flex;align-items:center;gap:8px">
+      <input id="speakerVolume" type="range" min="0" max="1" step="0.05" value="1" style="width:65px;min-height:18px;padding:0;display:none">
+      <button class="close-x" id="closeChatPopoverBtn" type="button">&times;</button>
     </div>
-    <p class="sub" style="margin-bottom:12px" data-i18n="authSub">अनलाइन मल्टिप्लेयर, पसल र प्रोफाइलको लागि लगइन गर्नुहोस् (पासवर्ड कम्तीमा १० अक्षर)।</p>
-    <div class="field"><label>Username (a-z, 0-9, _)</label><input id="inUser" autocomplete="username"></div>
-    <div class="field"><label>Password (min 10 chars)</label><input id="inPass" type="password" autocomplete="current-password"></div>
-    <div class="field"><label>Display name</label><input id="inName" maxlength="18"></div>
-    <div class="field"><label>Referral code (optional)</label><input id="inRef" maxlength="12"></div>
-    <div style="display:flex;gap:10px;margin-top:14px">
-      <button class="btn btn-primary" id="btnLogin" type="button" style="flex:1">लगइन</button>
-      <button class="btn btn-secondary" id="btnRegister" type="button" style="flex:1">नयाँ खाता</button>
-    </div>
+  </div>
+  <div class="quick-emotes" id="quickEmotes"></div>
+  <div class="chat-log" id="chatBox"></div>
+  <div class="chat-row">
+    <input id="chatInput" maxlength="200" placeholder="सन्देश लेख्नुहोस्...">
+    <button class="btn btn-primary btn-sm" id="chatSend" type="button">पठाउ</button>
   </div>
 </div>
 
-<!-- SETUP MODAL (VS COMPUTER / PASS & PLAY) -->
+<!-- SEPARATE LOGIN vs CREATE ACCOUNT MODAL -->
+<div class="modal-backdrop" id="authModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="authModalTitle">लगइन (Login)</h2>
+      <button class="close-x" type="button" onclick="closeModal('authModal')">&times;</button>
+    </div>
+    <div class="seg" style="width:100%;display:grid;grid-template-columns:1fr 1fr;margin-bottom:14px">
+      <button type="button" id="authTabLogin" class="active">लगइन (Login)</button>
+      <button type="button" id="authTabRegister">नयाँ खाता (Sign Up)</button>
+    </div>
+
+    <!-- LOGIN FORM ONLY (Username + Password) -->
+    <form id="loginFormWrap">
+      <div class="field"><label>Username</label><input id="loginUser" autocomplete="username" placeholder="username"></div>
+      <div class="field"><label>Password</label><input id="loginPass" type="password" autocomplete="current-password" placeholder="••••••••••"></div>
+      <button class="btn btn-primary btn-block" id="btnLogin" type="submit">लगइन गर्नुहोस्</button>
+    </form>
+
+    <!-- CREATE ACCOUNT FORM ONLY -->
+    <form id="registerFormWrap" style="display:none">
+      <div class="field"><label>Username (a-z, 0-9, _)</label><input id="regUser" autocomplete="username" placeholder="e.g. sagar_np"></div>
+      <div class="field"><label>Display Name (देखाउने नाम)</label><input id="regName" maxlength="18" placeholder="तपाईंको नाम"></div>
+      <div class="field"><label>Password (min 10 chars)</label><input id="regPass" type="password" autocomplete="new-password" placeholder="कम्तीमा १० अक्षर"></div>
+      <div class="field"><label>Friend Referral Code (optional)</label><input id="regRef" maxlength="12" placeholder="साथीको रेफरल कोड"></div>
+      <button class="btn btn-primary btn-block" id="btnRegister" type="submit">नयाँ खाता खोल्नुहोस्</button>
+    </form>
+  </div>
+</div>
+
+<!-- SETUP MODAL (COMPUTER / PASS & PLAY / ONLINE) -->
 <div class="modal-backdrop" id="setupModal">
   <div class="modal">
     <div class="modal-head">
@@ -763,10 +912,10 @@ input,select{
       <label data-i18n="gameRuleLbl">खेल नियम</label>
       <div class="seg" id="setupModeSeg">
         <button type="button" data-mode="classic" class="active">Classic (४ गोटी)</button>
-        <button type="button" data-mode="quick">Quick (१ गोटी छिटो)</button>
+        <button type="button" data-mode="quick">Quick (१ गोटी)</button>
       </div>
     </div>
-    <div class="field">
+    <div class="field" id="localCountWrap">
       <label data-i18n="playersCountLbl">खेलाडी संख्या</label>
       <div class="seg" id="setupCountSeg">
         <button type="button" data-cnt="2" class="active">२ खेलाडी</button>
@@ -774,43 +923,88 @@ input,select{
         <button type="button" data-cnt="4">४ खेलाडी</button>
       </div>
     </div>
+    <div id="onlineOptsWrap" style="display:none">
+      <div class="field">
+        <label data-i18n="onlinePlayersLbl">कति जना वा कुन कोठा?</label>
+        <div class="seg" id="setupOnlineSeg" style="width:100%;display:flex;flex-wrap:wrap">
+          <button type="button" data-online="friends" class="active" style="flex:1">🏠 साथीसँग कोठा</button>
+          <button type="button" data-online="2p" style="flex:1">⚡ २ खेलाडी</button>
+          <button type="button" data-online="4p" style="flex:1">🏆 ४ खेलाडी</button>
+        </div>
+      </div>
+      <div class="field">
+        <label data-i18n="stakeLbl">बाँजी / Stake (फन टोकन)</label>
+        <select id="setupOnlineStake">
+          <option value="0">0 (निःशुल्क / Free)</option>
+          <option value="10">10 Fun</option>
+          <option value="20">20 Fun</option>
+          <option value="50">50 Fun</option>
+          <option value="100">100 Fun</option>
+        </select>
+      </div>
+    </div>
     <div class="field" id="botColorWrap">
       <label data-i18n="yourColorLbl">तपाईंको रङ छान्नुहोस्</label>
       <div class="seg" id="setupColorSeg">
-        <button type="button" data-seat="0" class="active">रातो (Red)</button>
-        <button type="button" data-seat="1">हरियो (Green)</button>
-        <button type="button" data-seat="2">पहेंलो (Yellow)</button>
-        <button type="button" data-seat="3">नीलो (Blue)</button>
+        <button type="button" data-seat="3" class="active">नीलो</button>
+        <button type="button" data-seat="0">रातो</button>
+        <button type="button" data-seat="1">हरियो</button>
+        <button type="button" data-seat="2">पहेंलो</button>
       </div>
     </div>
     <div id="passNamesWrap" style="display:none"></div>
-    <button class="btn btn-primary btn-block" id="startLocalBtn" type="button" style="margin-top:14px" data-i18n="startMatchBtn">खेल सुरु गर्नुहोस्</button>
+    <button class="btn btn-primary btn-block" id="startLocalBtn" type="button" style="margin-top:12px" data-i18n="startMatchBtn">खेल सुरु गर्नुहोस्</button>
   </div>
 </div>
 
-<!-- JOIN CODE MODAL -->
-<div class="modal-backdrop" id="joinModal">
+<!-- INCOMING FRIEND PLAY REQUEST POP-UP MODAL -->
+<div class="modal-backdrop" id="playInviteModal">
   <div class="modal">
     <div class="modal-head">
-      <h2 data-i18n="joinModalTitle">कोठा कोड राख्नुहोस्</h2>
-      <button class="close-x" type="button" onclick="closeModal('joinModal')">&times;</button>
+      <h2 id="playInviteHeading">🎲 खेल्ने अनुरोध (Play Request)</h2>
+      <button class="close-x" id="closePlayInviteX" type="button">&times;</button>
     </div>
-    <div class="field">
-      <label>६-अक्षरको कोठा कोड (Room Code)</label>
-      <input id="joinCodeInput" maxlength="6" placeholder="ABCDEF" style="text-transform:uppercase;font-family:'JetBrains Mono',monospace;letter-spacing:3px;font-size:18px;text-align:center">
+    <div id="playInviteBody"></div>
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button class="btn btn-primary" id="acceptPlayInviteBtn" type="button" style="flex:1">✓ स्वीकार (Accept)</button>
+      <button class="btn btn-danger" id="declinePlayInviteBtn" type="button" style="flex:1">✕ रद्द (Cancel)</button>
     </div>
-    <button class="btn btn-primary btn-block" id="confirmJoinBtn" type="button">कोठामा छिर्नुहोस्</button>
+  </div>
+</div>
+
+<!-- INVITE ONLINE FRIENDS INTO SHARED ROOM MODAL -->
+<div class="modal-backdrop" id="inviteFriendsModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="inviteFriendsTitle">📩 साथीलाई कोठामा बोलाउनुहोस्</h2>
+      <button class="close-x" type="button" onclick="closeModal('inviteFriendsModal')">&times;</button>
+    </div>
+    <p class="sub" style="margin-bottom:10px" id="inviteFriendsSub">अनलाइन भएका साथीलाई खेल्न अनुरोध पठाउनुहोस्। स्वीकार गर्नेबित्तिकै यसै साझा कोठामा आउनुहुनेछ।</p>
+    <div id="inviteFriendsList"></div>
+  </div>
+</div>
+
+<!-- ACTIVE MATCH EXIT CONFIRMATION MODAL -->
+<div class="modal-backdrop" id="exitConfirmModal">
+  <div class="modal" style="text-align:center">
+    <div style="font-size:36px;margin-bottom:6px">⚠️</div>
+    <h2 id="exitConfirmTitle" style="font-size:20px">खेलबाट बाहिर निस्कने?</h2>
+    <p class="sub" id="exitConfirmMsg" style="margin:8px 0 16px">खेल चलिरहेको छ! तपाईं बाहिर निस्किएमा तपाईंको कोठा अनलक हुनेछ र अन्य खेलाडीले खेल जारी राख्नेछन्।</p>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-secondary" type="button" style="flex:1" onclick="closeModal('exitConfirmModal')" id="stayInGameBtn">खेल जारी राख्नुहोस्</button>
+      <button class="btn btn-danger" type="button" style="flex:1" id="confirmExitBtn">बाहिर निस्कनुहोस्</button>
+    </div>
   </div>
 </div>
 
 <!-- VICTORY MODAL -->
 <div class="modal-backdrop" id="victoryModal">
   <div class="modal" style="text-align:center">
-    <div style="font-size:48px;margin-bottom:6px">🏆</div>
+    <div style="font-size:44px;margin-bottom:6px">🏆</div>
     <h2 id="victoryTitle" style="font-size:24px">बधाई छ!</h2>
-    <p class="sub" id="victorySub" style="margin:6px 0 14px"></p>
+    <p class="sub" id="victorySub" style="margin:6px 0 12px"></p>
     <div id="victoryPodium"></div>
-    <div style="display:flex;gap:10px;margin-top:18px">
+    <div style="display:flex;gap:10px;margin-top:16px">
       <button class="btn btn-primary" id="playAgainBtn" type="button" style="flex:1">फेरि खेल्नुहोस्</button>
       <button class="btn btn-secondary" id="victoryHomeBtn" type="button" style="flex:1">मुख्य मेनु</button>
     </div>
@@ -827,99 +1021,88 @@ let lang = localStorage.getItem('ludo_lang') || 'ne';
 const I18N = {
   ne: {
     brand: 'नेपाली लुडो',
-    navPlay: 'खेल', navOnline: 'अनलाइन', navShop: 'पसल', navMarket: 'बजार', navProfile: 'प्रोफाइल',
     heroTitle: 'नेपाली लुडो दरबार',
-    heroSub: 'कम्प्युटर, पास एण्ड प्ले वा अनलाइन मल्टिप्लेयर — मौलिक नेपाली शैलीमा लुडो खेल्नुहोस्।',
-    winsLbl: 'जित', lvLbl: 'तह', funLbl: 'फन टोकन',
-    botKicker: 'तुरुन्तै खेल्नुहोस्', botTitle: 'कम्प्युटर सँग (vs Computer)',
-    botDesc: 'लगइन बिना नै २, ३ वा ४ खेलाडीको खेल सुरु गर्नुहोस्। क्लासिक वा छिटो (Quick) मोड छान्नुहोस्।',
-    playBotBtn: 'कम्प्युटर सँग खेल्नुहोस्',
-    passKicker: 'एउटै डिभाइसमा', passTitle: 'पास एण्ड प्ले (Pass & Play)',
-    passDesc: 'परिवार वा साथीहरूसँग एउटै फोन वा स्क्रिनमा २ देखि ४ जना मिलेर खेल्नुहोस्।',
-    playPassBtn: 'पास एण्ड प्ले सुरु',
-    qmKicker: 'लाइभ मल्टिप्लेयर', qmTitle: 'छिटो अनलाइन खेल (Quick Match)',
-    qmDesc: 'अनलाइन खेलाडीहरूसँग तुरुन्तै म्याच जोड्नुहोस् — क्लासिक वा छिटो नियममा।',
-    qm2Btn: '२ खेलाडी म्याच', qm4Btn: '४ खेलाडी म्याच',
-    privKicker: 'निजी कोठा', privTitle: 'साथीहरूसँग कोठा (Private Room)',
-    privDesc: 'कोठा बनाएर ६-अक्षरको कोड सेयर गर्नुहोस् वा कोठा कोड हालेर छिर्नुहोस्।',
-    createRoomBtn: 'कोठा बनाउनुहोस्', joinRoomBtn: 'कोडले छिर्नुहोस्',
-    themeHeading: 'बोर्डको शैली छान्नुहोस्', themeSub: 'तपाईंले खोल्नुभएको वा किन्नुभएको नेपाली बोर्ड थिम',
-    onlineTitle: 'अनलाइन खेलाडीहरू', onlineSub: 'खेल्नको लागि अनुरोध पठाउनुहोस् वा आएको अनुरोध स्वीकार गर्नुहोस्',
+    heroSub: 'मौलिक नेपाली शैलीको रमाइलो लुडो खेल',
+    winsLbl: 'जित', lvLbl: 'तह', funLbl: 'फन',
+    pickGameLbl: 'खेल छान्नुहोस्',
+    homePlayBtn: '🎲 खेल्नुहोस् (Play)',
+    optBot: '🤖 कम्प्युटर (Computer)',
+    optPass: '👥 पास प्ले (Pass & Play)',
+    optOnline: '🌐 अनलाइन (Online)',
+    hintBot: 'कम्प्युटर (AI) सँग २ देखि ४ खेलाडी खेल्नुहोस्',
+    hintPass: 'एउटै फोनमा साथीभाइसँग पालैपालो खेल्नुहोस्',
+    hintOnline: 'अनलाइन छिटो २/४ खेलाडी वा साथीको साझा कोठामा खेल्नुहोस्',
+    onlinePlayersLbl: 'कति जना वा कुन कोठा?',
+    themeHeading: 'बोर्डको शैली (Board Style)',
+    onlineTitle: 'अनलाइन खेलाडीहरू', onlineSub: 'खेल्न चुनौती पठाउनुहोस् वा साथी बनाउनुहोस्',
     dailyBtn: '+५० दैनिक फन', stakeLbl: 'बाँजी / Stake (फन टोकन)',
-    lbTitle: 'शीर्ष खेलाडी (Leaderboard)', lbSub: 'तह र जितका आधारमा उत्कृष्ट नेपाली लुडो खेलाडीहरू',
-    shopTitle: 'नेपाली पसल (Shop)', shopSub: 'सिक्का (Coins) बाट बोर्ड स्किन, अवतार र कोठाका सामान किन्नुहोस्।',
+    lbTitle: 'शीर्ष खेलाडी (Leaderboard)', lbSub: 'तह र जितका आधारमा उत्कृष्ट खेलाडीहरू',
+    shopTitle: 'नेपाली पसल (Shop)', shopSub: 'सिक्का (Coins) बाट बोर्ड स्किन, अवतार, माइक र कोठाका सामान किन्नुहोस्।',
     voiceShopTitle: 'लाइभ भ्वाइस प्याकेज (Live Voice)',
-    mktTitle: 'खेलाडी बजार (Marketplace)', mktSub: 'फन टोकन वा सिक्कामा स्किन र सामान किनबेच गर्नुहोस्।',
-    sellTitle: 'आफ्नो सामान बेच्नुहोस्', listSaleBtn: 'बिक्रीमा राख्नुहोस्',
-    needLoginTitle: 'प्रोफाइल र अनलाइन खाता',
-    needLoginSub: 'अंक सुरक्षित राख्न, साथीहरूसँग अनलाइन खेल्न र कोठा सजाउन लगइन वा खाता खोल्नुहोस्।',
+    mktTitle: 'आधिकारिक बजार (Admin Market)', mktSub: 'एडमिनले राखेका विशेष स्किन, अवतार, माइक र कोठा सजावट फन टोकन वा सिक्कामा किन्नुहोस्।',
+    needLoginTitle: 'प्रोफाइल र अनलाइन खाता', needLoginSub: 'अंक सुरक्षित राख्न, साथी बनाउन र अनलाइन खेल्न लगइन वा नयाँ खाता खोल्नुहोस्।',
     loginRegBtn: 'लगइन / नयाँ खाता',
     myRoomTitle: 'मेरो व्यक्तिगत कोठा', copyRefBtn: 'रेफरल लिंक कपी', convertBtn: '१०० फन → १ सिक्का',
     logoutBtn: 'लगआउट', editProfTitle: 'नाम, फोटो र सजावट',
     dispNameLbl: 'देखाउने नाम (Display Name)', photoLbl: 'प्रोफाइल फोटो (अधिकतम 150KB)',
     saveProfBtn: 'प्रोफाइल सुरक्षित गर्नुहोस्', equipTitle: 'स्किन र अवतार छान्नुहोस्',
     decorTitle: 'कोठाका सजावट सामान', giftVoiceTitle: 'साथीलाई भ्वाइस उपहार', sendGiftBtn: 'पठाउनुहोस्',
-    leaveBtn: 'बाहिर निस्कनुहोस्', currentTurnLbl: 'अहिलेको पालो',
-    quickChatLbl: 'नेपाली छिटो सन्देश', chatLbl: 'कुराकानी (Chat)',
-    rollPrompt: 'पासा थिच्नुहोस् (Space)', pickTokenPrompt: 'गोटी छान्नुहोस्!', waitTurn: 'अर्को खेलाडीको पालो...',
-    waitingPlayers: 'खेलाडी पर्खिँदै...'
+    friendsTitle: 'साथीहरू (Friends)',
+    rollPrompt: 'पासा थिच्नुहोस्', pickTokenPrompt: 'गोटी छान्नुहोस्!', waitTurn: 'अर्को पालो...',
+    waitingPlayers: 'पर्खिँदै...'
   },
   en: {
     brand: 'Nepali Ludo',
-    navPlay: 'Play', navOnline: 'Online', navShop: 'Shop', navMarket: 'Market', navProfile: 'Profile',
     heroTitle: 'Nepali Ludo Royal',
-    heroSub: 'Play authentic Nepali-style Ludo against AI bots, Pass & Play locally, or live online multiplayer.',
-    winsLbl: 'Wins', lvLbl: 'Level', funLbl: 'Fun Tokens',
-    botKicker: 'Instant Play', botTitle: 'vs Computer',
-    botDesc: 'Start a 2, 3, or 4-player match against Nepali AI bots with no login required.',
-    playBotBtn: 'Play vs Computer',
-    passKicker: 'Same Device', passTitle: 'Pass & Play',
-    passDesc: 'Play together with 2 to 4 friends or family members on one screen.',
-    playPassBtn: 'Start Pass & Play',
-    qmKicker: 'Live Multiplayer', qmTitle: 'Quick Match Online',
-    qmDesc: 'Auto-match with live players online in Classic or Quick Ludo mode.',
-    qm2Btn: '2-Player Match', qm4Btn: '4-Player Match',
-    privKicker: 'Private Room', privTitle: 'Play with Friends',
-    privDesc: 'Create a private 6-character room code to share or join a friend’s room.',
-    createRoomBtn: 'Create Room', joinRoomBtn: 'Join by Code',
-    themeHeading: 'Board Theme', themeSub: 'Preview or equip your unlocked Nepali board styles',
-    onlineTitle: 'Online Players', onlineSub: 'Send a play challenge or accept incoming invites',
+    heroSub: 'Authentic Nepali-style Ludo',
+    winsLbl: 'Wins', lvLbl: 'Level', funLbl: 'Fun',
+    pickGameLbl: 'Choose Game',
+    homePlayBtn: '🎲 Play Now',
+    optBot: '🤖 Computer (vs AI)',
+    optPass: '👥 Pass & Play',
+    optOnline: '🌐 Online',
+    hintBot: 'Play against AI bots with 2 to 4 players',
+    hintPass: 'Play turn-by-turn with friends on this device',
+    hintOnline: 'Pick 2P/4P quick match or open a Friends Room',
+    onlinePlayersLbl: 'Online Players / Room Type',
+    themeHeading: 'Board Style',
+    onlineTitle: 'Online Players', onlineSub: 'Challenge players or add friends',
     dailyBtn: '+50 Daily Fun', stakeLbl: 'Match Stake (Fun Tokens)',
-    lbTitle: 'Leaderboard', lbSub: 'Top Nepali Ludo players by level and wins',
-    shopTitle: 'Nepali Shop', shopSub: 'Unlock board skins, Nepali avatars, and room decor with coins.',
+    lbTitle: 'Leaderboard', lbSub: 'Top players by level and wins',
+    shopTitle: 'Nepali Shop', shopSub: 'Buy board skins, avatars, mics, and decor with coins.',
     voiceShopTitle: 'Live Voice Packages',
-    mktTitle: 'Player Marketplace', mktSub: 'Trade skins, mics, and decor using Fun tokens or coins.',
-    sellTitle: 'List an Item for Sale', listSaleBtn: 'List for Sale',
-    needLoginTitle: 'Profile & Online Account',
-    needLoginSub: 'Sign in or create an account to save wins, join online matches, and decorate your room.',
-    loginRegBtn: 'Login / Register',
+    mktTitle: 'Official Market (Admin Store)', mktSub: 'Buy curated admin items with Fun Tokens or Coins.',
+    needLoginTitle: 'Profile & Account', needLoginSub: 'Login or create an account to add friends and play online.',
+    loginRegBtn: 'Login / Create Account',
     myRoomTitle: 'My Personal Room', copyRefBtn: 'Copy Referral Link', convertBtn: '100 Fun → 1 Coin',
     logoutBtn: 'Logout', editProfTitle: 'Name, Photo & Decor',
     dispNameLbl: 'Display Name', photoLbl: 'Profile Photo (max 150KB)',
     saveProfBtn: 'Save Profile', equipTitle: 'Equip Skins & Avatars',
     decorTitle: 'Room Decorations', giftVoiceTitle: 'Gift Voice Hours', sendGiftBtn: 'Send Gift',
-    leaveBtn: 'Leave', currentTurnLbl: 'Current Turn',
-    quickChatLbl: 'Nepali Quick Chat', chatLbl: 'Live Chat',
-    rollPrompt: 'Tap Dice to Roll (Space)', pickTokenPrompt: 'Select a Goti to Move!', waitTurn: 'Opponent thinking...',
-    waitingPlayers: 'Waiting for players...'
+    friendsTitle: 'Friends',
+    rollPrompt: 'Tap Dice to Roll', pickTokenPrompt: 'Pick a Goti!', waitTurn: 'Waiting turn...',
+    waitingPlayers: 'Waiting...'
   }
 };
-
 function t(k){ return (I18N[lang] && I18N[lang][k]) || I18N.en[k] || k; }
+function updateHomeModeHint(){
+  const v = $('homeGameSelect')?.value || 'bot';
+  const hintKey = v === 'pass' ? 'hintPass' : v === 'online' ? 'hintOnline' : 'hintBot';
+  if ($('homeModeHint')) $('homeModeHint').textContent = t(hintKey);
+}
 function applyLang(){
   $('brandText').textContent = t('brand');
-  $('navPlay').textContent = t('navPlay');
-  $('navOnline').textContent = t('navOnline');
-  $('navShop').textContent = t('navShop');
-  $('navMarket').textContent = t('navMarket');
-  $('navProfile').textContent = t('navProfile');
   $('heroTitle').textContent = t('heroTitle');
   $('heroSub').textContent = t('heroSub');
-  $('langBtn').textContent = lang === 'ne' ? 'EN' : 'ने';
+  $('langBtn').textContent = lang === 'ne' ? '🌐 English' : '🌐 नेपाली';
+  if ($('optGameBot')) $('optGameBot').textContent = t('optBot');
+  if ($('optGamePass')) $('optGamePass').textContent = t('optPass');
+  if ($('optGameOnline')) $('optGameOnline').textContent = t('optOnline');
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const k = el.dataset.i18n;
     if (I18N[lang][k]) el.textContent = I18N[lang][k];
   });
+  updateHomeModeHint();
   updateAuthHeader();
 }
 $('langBtn').onclick = () => {
@@ -937,44 +1120,122 @@ function ensureAudio(){
   if (audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{});
   return audioCtx;
 }
-function playTone(freq, dur, type = 'sine', vol = 0.14, delay = 0){
+function playTone(freq, dur, type = 'sine', vol = 0.14, delay = 0, endFreq = null){
   const ctx = ensureAudio(); if (!ctx) return;
   const now = ctx.currentTime + delay;
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
-  osc.type = type; osc.frequency.setValueAtTime(freq, now);
-  gain.gain.setValueAtTime(vol, now);
-  gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, now);
+  if (endFreq !== null) osc.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), now + dur);
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.linearRampToValueAtTime(vol, now + 0.008);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
   osc.connect(gain); gain.connect(ctx.destination);
-  osc.start(now); osc.stop(now + dur);
+  osc.start(now); osc.stop(now + dur + 0.01);
 }
-function playSound(kind){
+function playNoiseClick(dur = 0.045, cutoff = 1600, vol = 0.09, delay = 0){
+  const ctx = ensureAudio(); if (!ctx) return;
+  const len = Math.max(1, Math.floor(ctx.sampleRate * dur));
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+  const src = ctx.createBufferSource(); src.buffer = buf;
+  const filter = ctx.createBiquadFilter(); filter.type = 'bandpass'; filter.frequency.value = cutoff; filter.Q.value = 1.6;
+  const gain = ctx.createGain(); const now = ctx.currentTime + delay;
+  gain.gain.setValueAtTime(vol, now); gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+  src.connect(filter); filter.connect(gain); gain.connect(ctx.destination); src.start(now);
+}
+function playSound(kind, param = 0){
   if (!soundOn) return;
-  if (kind === 'roll'){ [260,340,290,410].forEach((f,i)=>playTone(f,0.06,'triangle',0.12,i*0.06)); }
-  else if (kind === 'step'){ playTone(520,0.055,'sine',0.09,0); }
-  else if (kind === 'six'){ playTone(523,0.1,'triangle',0.14,0); playTone(659,0.14,'triangle',0.14,0.08); }
-  else if (kind === 'capture'){ playTone(440,0.09,'sawtooth',0.14,0); playTone(220,0.22,'sawtooth',0.16,0.07); }
-  else if (kind === 'home'){ [523,659,784].forEach((f,i)=>playTone(f,0.14,'triangle',0.15,i*0.08)); }
-  else if (kind === 'win'){ [523,659,784,1046].forEach((f,i)=>playTone(f,0.22,'triangle',0.16,i*0.11)); }
+  if (kind === 'start'){
+    [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => playTone(f, 0.16, 'triangle', 0.11, i * 0.075));
+  } else if (kind === 'roll'){
+    // Realistic shaken-cup rattle + wooden board dice bounce
+    [0, 0.048, 0.098, 0.148, 0.20].forEach((d, i) => {
+      playNoiseClick(0.036, 1150 + (i % 3) * 340, 0.11, d);
+      playTone(195 + (i % 2) * 55, 0.042, 'triangle', 0.085, d, 130);
+    });
+    [0.275, 0.355, 0.43].forEach((d, i) => {
+      const att = 1 - i * 0.26;
+      playNoiseClick(0.022, 2300 - i * 250, 0.08 * att, d);
+      playTone(430 - i * 45, 0.032, 'sine', 0.075 * att, d, 210);
+    });
+  } else if (kind === 'step'){
+    const base = 460 + Math.min(param, 6) * 42;
+    playTone(base, 0.065, 'sine', 0.11, 0, base * 1.18);
+    playTone(base * 2, 0.035, 'triangle', 0.035, 0);
+  } else if (kind === 'exit'){
+    playTone(300, 0.14, 'triangle', 0.13, 0, 680);
+    playTone(680, 0.12, 'sine', 0.09, 0.08, 880);
+  } else if (kind === 'six'){
+    playTone(659.25, 0.11, 'triangle', 0.12, 0);
+    playTone(880, 0.13, 'triangle', 0.12, 0.07);
+    playTone(1174.66, 0.18, 'sine', 0.11, 0.14);
+  } else if (kind === 'safe'){
+    playTone(783.99, 0.18, 'sine', 0.10, 0);
+    playTone(1174.66, 0.22, 'sine', 0.08, 0.04);
+  } else if (kind === 'capture'){
+    playNoiseClick(0.09, 900, 0.14, 0);
+    playTone(540, 0.16, 'sawtooth', 0.12, 0, 110);
+    playTone(180, 0.24, 'triangle', 0.15, 0.03, 65);
+  } else if (kind === 'home'){
+    [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
+      playTone(f, 0.18, 'triangle', 0.13, i * 0.065);
+      playTone(f * 1.5, 0.15, 'sine', 0.05, i * 0.065);
+    });
+  } else if (kind === 'foul'){
+    playTone(340, 0.12, 'sawtooth', 0.09, 0, 270);
+    playTone(250, 0.18, 'sawtooth', 0.09, 0.12, 160);
+  } else if (kind === 'pass'){
+    playTone(240, 0.08, 'sine', 0.07, 0, 170);
+  } else if (kind === 'emote'){
+    playTone(540, 0.06, 'sine', 0.06, 0, 820);
+  } else if (kind === 'win'){
+    const melody = [
+      [523.25, 0, 0.16], [659.25, 0.11, 0.16], [783.99, 0.22, 0.16],
+      [1046.5, 0.34, 0.24], [783.99, 0.52, 0.14], [1046.5, 0.66, 0.38], [1318.5, 0.66, 0.42]
+    ];
+    melody.forEach(([f, d, dur]) => playTone(f, dur, 'triangle', 0.14, d));
+    playTone(261.63, 0.45, 'sine', 0.10, 0.66);
+  }
 }
-$('soundBtn').textContent = soundOn ? '🔊' : '🔇';
+$('soundBtn').textContent = soundOn ? '🔊 Sound On' : '🔇 Muted';
 $('soundBtn').onclick = () => {
   soundOn = !soundOn;
   localStorage.setItem('ludo_sound', soundOn ? '1' : '0');
-  $('soundBtn').textContent = soundOn ? '🔊' : '🔇';
+  $('soundBtn').textContent = soundOn ? '🔊 Sound On' : '🔇 Muted';
   if (soundOn) playTone(580, 0.08, 'sine', 0.1);
 };
 
-// ===================== AUTH & API =====================
+// ===================== DRAWER & NAVIGATION =====================
+function openDrawer(){
+  $('menuDrawer').classList.add('open');
+  $('drawerBackdrop').classList.add('open');
+  $('drawerGameActions').style.display = isPlaying() ? 'block' : 'none';
+  $('drawerCopyCodeBtn').style.display = (isPlaying() && gameModeType === 'online' && roomId) ? 'inline-flex' : 'none';
+  if (auth?.token) refreshFriends();
+}
+function closeDrawer(){
+  $('menuDrawer').classList.remove('open');
+  $('drawerBackdrop').classList.remove('open');
+}
+$('menuBtn').onclick = openDrawer;
+$('inGameMenuBtn').onclick = openDrawer;
+$('drawerCloseBtn').onclick = closeDrawer;
+$('drawerBackdrop').onclick = closeDrawer;
+
+// ===================== AUTH & SEPARATE LOGIN / SIGNUP =====================
 let auth = JSON.parse(localStorage.getItem('ludo_auth') || 'null');
 let shop = null, pendingBuy = null;
 let selectedBoardSkin = localStorage.getItem('ludo_skin') || 'default';
 let hb = null, lobbyT = null;
+let myFriendsData = { friends: [], requests: [] };
 
 (() => {
   const r = new URLSearchParams(location.search).get('ref');
-  if (r) { $('inRef').value = r; localStorage.setItem('ludo_ref', r); }
-  else if (localStorage.getItem('ludo_ref')) $('inRef').value = localStorage.getItem('ludo_ref');
+  if (r) { $('regRef').value = r; localStorage.setItem('ludo_ref', r); }
+  else if (localStorage.getItem('ludo_ref')) $('regRef').value = localStorage.getItem('ludo_ref');
 })();
 
 function toast(m){
@@ -987,6 +1248,20 @@ function openModal(id){ $(id).classList.add('open'); }
 function closeModal(id){ $(id).classList.remove('open'); }
 function fmtMs(ms){ if(ms<=0)return '0m'; const h=Math.floor(ms/3600000), m=Math.floor((ms%3600000)/60000); return h ? h+'h '+m+'m' : m+'m'; }
 
+function switchAuthTab(mode){
+  const isReg = mode === 'register';
+  $('authTabLogin').classList.toggle('active', !isReg);
+  $('authTabRegister').classList.toggle('active', isReg);
+  $('loginFormWrap').style.display = isReg ? 'none' : 'block';
+  $('registerFormWrap').style.display = isReg ? 'block' : 'none';
+  $('authModalTitle').textContent = isReg
+    ? (lang === 'ne' ? 'नयाँ खाता खोल्नुहोस्' : 'Create Account')
+    : (lang === 'ne' ? 'लगइन (Login)' : 'Login');
+}
+$('authTabLogin').onclick = () => switchAuthTab('login');
+$('authTabRegister').onclick = () => switchAuthTab('register');
+function openAuth(mode = 'login'){ switchAuthTab(mode); openModal('authModal'); }
+
 async function api(path, opts = {}){
   const headers = {'Content-Type':'application/json', ...(opts.headers||{})};
   if (auth?.token) headers.Authorization = 'Bearer ' + auth.token;
@@ -994,50 +1269,66 @@ async function api(path, opts = {}){
   return r.json();
 }
 
+function updateMenuBadges(){
+  const onlineCount = (myFriendsData.friends || []).filter(f => f.status !== 'offline').length;
+  const reqCount = (myFriendsData.requests || []).length;
+  const badgeVal = reqCount > 0 ? `+${reqCount}` : (onlineCount > 0 ? String(onlineCount) : '');
+  [$('menuBadge'), $('inGameMenuBadge')].forEach(b => {
+    b.textContent = badgeVal;
+    b.classList.toggle('show', !!badgeVal);
+  });
+}
+
 function updateAuthHeader(){
   const u = auth?.user;
+  const isLoggedIn = !!u;
+  if ($('drawerUserCard')) $('drawerUserCard').style.display = isLoggedIn ? 'flex' : 'none';
+  if ($('drawerFriendsSection')) $('drawerFriendsSection').style.display = isLoggedIn ? 'block' : 'none';
+  ['dNavOnline', 'dNavShop', 'dNavMarket', 'dNavProfile'].forEach(id => {
+    if ($(id)) $(id).style.display = isLoggedIn ? 'flex' : 'none';
+  });
+  if ($('drawerTitle')){
+    $('drawerTitle').textContent = isLoggedIn
+      ? (lang === 'ne' ? 'मेनु र साथीहरू (Menu)' : 'Menu & Friends')
+      : (lang === 'ne' ? 'मेनु (Menu)' : 'Menu');
+  }
   if (u){
     const totalFun = (u.funTokens || 0) + (u.dailyFunTokens || 0);
     $('acctSummary').innerHTML = `<b>${esc(u.displayName || u.username)}</b> · ${totalFun} Fun · ${u.coins || 0} Coins · Lv${u.level || 1}`;
-    $('authTopBtn').textContent = lang === 'ne' ? 'मेरो कोठा' : 'Account';
+    $('authTopBtn').textContent = lang === 'ne' ? 'प्रोफाइल' : 'Profile';
+    $('drawerUserName').textContent = u.displayName || u.username;
+    $('drawerUserMeta').textContent = `@${u.username} · ${totalFun} Fun · ${u.coins || 0} Coins`;
+    $('drawerAuthBtn').textContent = lang === 'ne' ? 'कोठा' : 'Room';
     $('statWins').textContent = u.wins || 0;
     $('statLv').textContent = u.level || 1;
     $('statFun').textContent = totalFun;
-    if (u.equippedSkin) selectedBoardSkin = u.equippedSkin;
+    if (!localStorage.getItem('ludo_skin') && u.equippedSkin) selectedBoardSkin = u.equippedSkin;
   } else {
     $('acctSummary').textContent = '';
     $('authTopBtn').textContent = lang === 'ne' ? 'लगइन' : 'Login';
+    $('drawerUserName').textContent = lang === 'ne' ? 'अतिथि खेलाडी' : 'Guest Player';
+    $('drawerUserMeta').textContent = lang === 'ne' ? 'साथी र अनलाइनको लागि लगइन' : 'Login for friends & online';
+    $('drawerAuthBtn').textContent = lang === 'ne' ? 'लगइन' : 'Login';
     const localWins = Number(localStorage.getItem('ludo_local_wins') || 0);
     $('statWins').textContent = localWins;
     $('statLv').textContent = 1 + Math.floor(localWins / 3);
     $('statFun').textContent = '—';
   }
-  document.querySelectorAll('#quickThemePicker button').forEach(b => {
+  document.querySelectorAll('#drawerThemePicker button').forEach(b => {
     b.classList.toggle('active', b.dataset.skin === selectedBoardSkin);
   });
+  updateMenuBadges();
 }
 
-$('authTopBtn').onclick = () => {
-  if (auth?.user) switchTab('profile');
-  else openModal('authModal');
-};
-$('profLoginBtn').onclick = () => openModal('authModal');
-$('brandBtn').onclick = () => { if (!isPlaying()) switchTab('play'); };
+$('authTopBtn').onclick = () => { if (auth?.user) switchTab('profile'); else openAuth('login'); };
+$('drawerAuthBtn').onclick = () => { closeDrawer(); if (auth?.user) switchTab('profile'); else openAuth('login'); };
+$('profLoginBtn').onclick = () => openAuth('login');
+$('brandBtn').onclick = () => requestExitOrSwitch('play');
 
-$('btnRegister').onclick = async () => {
-  const username = $('inUser').value.trim().toLowerCase(), password = $('inPass').value;
-  const displayName = $('inName').value.trim() || username, referral = $('inRef').value.trim();
-  const j = await api('/api/user/' + encodeURIComponent(username) + '/register', {
-    method: 'POST', body: JSON.stringify({username, password, displayName, referral})
-  });
-  if (!j.ok) return toast(j.error || 'Registration failed');
-  auth = { token: j.token, user: j.user, username }; save();
-  closeModal('authModal'); toast(lang === 'ne' ? 'खाता खुल्यो!' : 'Account created!');
-  onSignedIn();
-};
-
-$('btnLogin').onclick = async () => {
-  const username = $('inUser').value.trim().toLowerCase(), password = $('inPass').value;
+$('loginFormWrap').onsubmit = async (e) => {
+  e.preventDefault();
+  const username = $('loginUser').value.trim().toLowerCase(), password = $('loginPass').value;
+  if (!username || !password) return toast(lang === 'ne' ? 'युजरनेम र पासवर्ड राख्नुहोस्' : 'Enter username and password');
   const j = await api('/api/user/' + encodeURIComponent(username) + '/login', {
     method: 'POST', body: JSON.stringify({username, password})
   });
@@ -1047,19 +1338,41 @@ $('btnLogin').onclick = async () => {
   onSignedIn();
 };
 
+$('registerFormWrap').onsubmit = async (e) => {
+  e.preventDefault();
+  const username = $('regUser').value.trim().toLowerCase(), password = $('regPass').value;
+  const displayName = $('regName').value.trim() || username, referral = $('regRef').value.trim();
+  const j = await api('/api/user/' + encodeURIComponent(username) + '/register', {
+    method: 'POST', body: JSON.stringify({username, password, displayName, referral})
+  });
+  if (!j.ok) return toast(j.error || 'Registration failed');
+  auth = { token: j.token, user: j.user, username }; save();
+  closeModal('authModal'); toast(lang === 'ne' ? 'नयाँ खाता खुल्यो!' : 'Account created!');
+  onSignedIn();
+};
+
 $('btnLogout').onclick = () => {
   stopTimers(); auth = null; localStorage.removeItem('ludo_auth');
+  myFriendsData = { friends: [], requests: [] };
+  renderFriendsPanel();
   updateAuthHeader(); renderProfile(); switchTab('play');
 };
 
+let pendingOnlineAfterAuth = false;
 function onSignedIn(){
   updateAuthHeader();
   setStatus('online');
   startTimers();
   refreshLobby();
+  refreshFriends();
+  pollInvite();
   loadShop();
   loadMarket();
   renderProfile();
+  if (pendingOnlineAfterAuth){
+    pendingOnlineAfterAuth = false;
+    openSetup('online');
+  }
 }
 
 async function setStatus(st){
@@ -1080,51 +1393,208 @@ function startTimers(){
     if (j.ok){ auth.user = j.user; save(); updateAuthHeader(); }
   };
   beat();
-  hb = setInterval(beat, 30000);
-  lobbyT = setInterval(() => { refreshLobby(); pollInvite(); }, 5000);
+  hb = setInterval(beat, 25000);
+  lobbyT = setInterval(() => {
+    pollInvite();
+    refreshFriends();
+    if ($('view-online').classList.contains('active') || $('inviteFriendsModal').classList.contains('open')) refreshLobby();
+  }, 2600);
 }
 function stopTimers(){ clearInterval(hb); clearInterval(lobbyT); }
 
 function isPlaying(){ return $('view-game').classList.contains('active'); }
 
-function switchTab(tab){
-  if (isPlaying() && tab !== 'game'){
-    toast(lang === 'ne' ? 'पहिले खेलबाट बाहिर निस्कनुहोस्' : 'Leave the active game first');
+function isMatchRunning(){
+  if (!isPlaying()) return false;
+  const s = currentState();
+  if (!s || s.finished) return false;
+  if (gameModeType === 'online' && !roomData?.locked) return false;
+  return true;
+}
+
+let pendingExitTab = 'play';
+function requestExitOrSwitch(targetTab = 'play'){
+  if (!isPlaying()){
+    switchTab(targetTab);
     return;
   }
-  document.querySelectorAll('.nav-link').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  if (!isMatchRunning()){
+    leaveCurrentMatch(targetTab);
+    return;
+  }
+  pendingExitTab = targetTab;
+  closeDrawer();
+  $('exitConfirmTitle').textContent = lang === 'ne' ? 'खेलबाट बाहिर निस्कने?' : 'Leave Active Match?';
+  $('exitConfirmMsg').textContent = lang === 'ne'
+    ? 'खेल चलिरहेको छ! तपाईं बाहिर निस्किएमा तपाईंको कोठा अनलक हुनेछ र बाँकी खेलाडीले खेल जारी राख्नेछन्।'
+    : 'A match is currently running! Leaving will unlock your room while remaining players keep playing.';
+  $('stayInGameBtn').textContent = lang === 'ne' ? 'खेल जारी राख्नुहोस्' : 'Keep Playing';
+  $('confirmExitBtn').textContent = lang === 'ne' ? 'बाहिर निस्कनुहोस्' : 'Confirm Exit';
+  openModal('exitConfirmModal');
+}
+
+$('confirmExitBtn').onclick = () => {
+  closeModal('exitConfirmModal');
+  leaveCurrentMatch(pendingExitTab || 'play');
+};
+
+function switchTab(tab){
+  if (isPlaying() && tab !== 'game'){
+    requestExitOrSwitch(tab);
+    return;
+  }
+  document.body.classList.toggle('in-game', tab === 'game');
+  document.querySelectorAll('.drawer-nav-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   const target = $('view-' + tab);
   if (target) target.classList.add('active');
+  closeDrawer();
   if (tab === 'online'){ refreshLobby(); loadLeaderboard(); }
   if (tab === 'shop') loadShop();
   if (tab === 'market') loadMarket();
   if (tab === 'profile') renderProfile();
 }
-document.querySelectorAll('.nav-link').forEach(b => b.onclick = () => switchTab(b.dataset.tab));
+document.querySelectorAll('.drawer-nav-btn').forEach(b => b.onclick = () => switchTab(b.dataset.tab));
 
-document.querySelectorAll('#quickThemePicker button').forEach(b => {
+const SKIN_CROWNS = {
+  himal: '🏔️', pahad: '⛰️', terai: '🌾', durbar: '🏯',
+  nepal: '🚩', neon: '🪔', gold: '👑', default: '👑'
+};
+function skinCrownGlyph(skin){ return SKIN_CROWNS[skin] || '👑'; }
+function applyBoardSkin(skin){
+  selectedBoardSkin = skin || 'default';
+  localStorage.setItem('ludo_skin', selectedBoardSkin);
+  const b = $('board');
+  if (b){
+    b.className = 'skin-' + selectedBoardSkin;
+    const crown = b.querySelector('.center-crown');
+    if (crown) crown.textContent = skinCrownGlyph(selectedBoardSkin);
+  }
+  document.querySelectorAll('#drawerThemePicker button').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.skin === selectedBoardSkin);
+  });
+}
+
+document.querySelectorAll('#drawerThemePicker button').forEach(b => {
   b.onclick = async () => {
     const skin = b.dataset.skin;
-    selectedBoardSkin = skin;
-    localStorage.setItem('ludo_skin', skin);
-    updateAuthHeader();
+    applyBoardSkin(skin);
     if (auth?.user && (auth.user.ownedSkins || []).includes(skin)){
       const j = await api('/api/user/' + auth.username + '/equip', {
         method: 'POST', body: JSON.stringify({skinId: skin, token: auth.token})
       });
       if (j.ok){ auth.user = j.user; save(); }
     }
-    toast(lang === 'ne' ? 'बोर्ड थिम छानियो' : 'Board theme selected');
+    toast((lang === 'ne' ? 'बोर्ड शैली: ' : 'Board style: ') + b.textContent.trim());
   };
 });
 
+// ===================== FRIENDS SYSTEM (LIVE ONLINE/OFFLINE INSIDE ≡ MENU) =====================
+async function refreshFriends(){
+  if (!auth){ renderFriendsPanel(); return; }
+  const j = await api('/api/user/' + auth.username + '/friends');
+  if (j.ok){
+    myFriendsData = { friends: j.friends || [], requests: j.requests || [] };
+    renderFriendsPanel();
+    updateMenuBadges();
+  }
+}
+
+function renderFriendsPanel(){
+  const reqBox = $('friendReqList'), listBox = $('friendList'), sum = $('friendsOnlineSummary');
+  if (!auth){
+    sum.textContent = '';
+    reqBox.innerHTML = '';
+    listBox.innerHTML = `<p class="sub" style="font-size:12px">${lang === 'ne' ? 'साथी र अनलाइन स्थिति हेर्न लगइन गर्नुहोस्।' : 'Login to add friends and see online status.'}</p>`;
+    return;
+  }
+  const friends = myFriendsData.friends || [];
+  const reqs = myFriendsData.requests || [];
+  const onCnt = friends.filter(f => f.status !== 'offline').length;
+  sum.textContent = `${onCnt}/${friends.length} Online`;
+
+  reqBox.innerHTML = '';
+  reqs.forEach(r => {
+    const d = document.createElement('div'); d.className = 'friend-row';
+    d.innerHTML = `<div style="min-width:0"><div style="font-size:12px;font-weight:700">${esc(r.fromName || r.from)}</div><div class="sub" style="font-size:10px">@${esc(r.from)} · साथी अनुरोध</div></div>`;
+    const acts = document.createElement('div'); acts.style.display = 'flex'; acts.style.gap = '4px';
+    const acc = document.createElement('button'); acc.className = 'btn btn-primary btn-sm'; acc.textContent = '✓';
+    acc.onclick = async () => {
+      const res = await api('/api/user/' + auth.username + '/accept-friend', { method: 'POST', body: JSON.stringify({ from: r.from, token: auth.token }) });
+      if (res.ok){ toast('साथी बनियो!'); refreshFriends(); }
+    };
+    const dec = document.createElement('button'); dec.className = 'btn btn-secondary btn-sm'; dec.textContent = '✕';
+    dec.onclick = async () => {
+      await api('/api/user/' + auth.username + '/decline-friend', { method: 'POST', body: JSON.stringify({ from: r.from, token: auth.token }) });
+      refreshFriends();
+    };
+    acts.append(acc, dec); d.appendChild(acts); reqBox.appendChild(d);
+  });
+
+  listBox.innerHTML = '';
+  if (!friends.length){
+    listBox.innerHTML = `<p class="sub" style="font-size:12px">${lang === 'ne' ? 'अहिलेसम्म साथी छैनन् — माथि username खोजेर थप्नुहोस्।' : 'No friends yet — search a username above.'}</p>`;
+    return;
+  }
+  friends.forEach(f => {
+    const d = document.createElement('div'); d.className = 'friend-row';
+    const stLbl = f.status === 'online' ? 'Online' : f.status === 'busy' ? 'In Game' : 'Offline';
+    d.innerHTML = `<div style="display:flex;align-items:center;gap:8px;min-width:0"><span class="status-dot ${f.status}"></span><div style="min-width:0"><div style="font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(f.displayName)}</div><div class="sub num" style="font-size:10px">${stLbl} · Lv${f.level || 1}</div></div></div>`;
+    if (f.status === 'online' && !isMatchRunning()){
+      const inv = document.createElement('button'); inv.className = 'btn btn-primary btn-sm'; inv.textContent = lang === 'ne' ? 'खेल्नु' : 'Play';
+      inv.onclick = () => { sendReq(f.username, f.displayName); closeDrawer(); };
+      d.appendChild(inv);
+    }
+    listBox.appendChild(d);
+  });
+}
+
+async function addFriendByUsername(target){
+  if (!auth) return openAuth('login');
+  const to = String(target || '').trim().toLowerCase();
+  if (!to) return;
+  const j = await api('/api/user/' + auth.username + '/friend-request', {
+    method: 'POST', body: JSON.stringify({ to, token: auth.token })
+  });
+  if (j.ok){
+    toast(j.accepted ? `${to} सँग साथी बनियो!` : j.alreadyFriends ? 'पहिले नै साथी हुनुहुन्छ' : `साथी अनुरोध पठाइयो → ${to}`);
+    refreshFriends();
+  } else toast(j.error || 'User not found');
+}
+
+$('friendSearchBtn').onclick = async () => {
+  if (!auth) return openAuth('login');
+  const q = $('friendSearchInput').value.trim().toLowerCase();
+  if (!q) return;
+  const j = await api('/api/lobby/search-users?q=' + encodeURIComponent(q));
+  const box = $('friendSearchResults'); box.innerHTML = '';
+  const users = (j.users || []).filter(u => u.username !== auth.username);
+  if (!users.length){
+    // Fallback direct add attempt
+    await addFriendByUsername(q);
+    return;
+  }
+  users.slice(0, 5).forEach(u => {
+    const isFriend = (myFriendsData.friends || []).some(f => f.username === u.username);
+    const d = document.createElement('div'); d.className = 'friend-row';
+    d.innerHTML = `<div style="display:flex;align-items:center;gap:6px;min-width:0"><span class="status-dot ${u.status}"></span><div style="min-width:0"><div style="font-size:12px;font-weight:700">${esc(u.displayName)}</div><div class="sub" style="font-size:10px">@${esc(u.username)}</div></div></div>`;
+    if (!isFriend){
+      const b = document.createElement('button'); b.className = 'btn btn-primary btn-sm'; b.textContent = '+ साथी';
+      b.onclick = async () => { await addFriendByUsername(u.username); box.innerHTML = ''; $('friendSearchInput').value = ''; };
+      d.appendChild(b);
+    } else {
+      const s = document.createElement('span'); s.className = 'sub'; s.style.fontSize = '11px'; s.textContent = '✓ साथी';
+      d.appendChild(s);
+    }
+    box.appendChild(d);
+  });
+};
+
 // ===================== LOBBY, QUICK MATCH & LEADERBOARD =====================
 async function refreshLobby(){
-  const list = $('userList');
-  const reqArea = $('reqArea');
+  const list = $('userList'), reqArea = $('reqArea');
   if (!auth){
-    list.innerHTML = `<p class="sub">${lang === 'ne' ? 'अनलाइन खेलाडी हेर्न लगइन गर्नुहोस्।' : 'Login to see online players and send challenges.'}</p>`;
+    list.innerHTML = `<p class="sub">${lang === 'ne' ? 'अनलाइन खेलाडी हेर्न लगइन गर्नुहोस्।' : 'Login to see online players.'}</p>`;
     reqArea.innerHTML = '';
     return;
   }
@@ -1135,19 +1605,27 @@ async function refreshLobby(){
     const row = document.createElement('div'); row.className = 'user-row';
     const busy = u.status === 'busy';
     const av = u.avatarPhoto
-      ? `<img class="item-thumb" style="width:40px;height:40px;border-radius:50%" src="${u.avatarPhoto}" alt="">`
-      : `<span class="item-thumb" style="width:40px;height:40px;border-radius:50%;font-size:18px">👤</span>`;
-    row.innerHTML = `<div style="display:flex;align-items:center;gap:10px;min-width:0">${av}<div style="min-width:0"><div style="font-weight:700;font-size:14px">${esc(u.displayName || u.username)}</div><div class="sub" style="font-size:12px">${busy ? 'Busy' : 'Online'} · Lv${u.level || 1}${u.voiceActive ? ' · 🎤' : ''}</div></div></div>`;
+      ? `<img class="item-thumb" style="width:38px;height:38px;border-radius:50%" src="${u.avatarPhoto}" alt="">`
+      : `<span class="item-thumb" style="width:38px;height:38px;border-radius:50%;font-size:16px">👤</span>`;
+    row.innerHTML = `<div style="display:flex;align-items:center;gap:10px;min-width:0">${av}<div style="min-width:0"><div style="font-weight:700;font-size:13px">${esc(u.displayName || u.username)}</div><div class="sub" style="font-size:11px">${busy ? 'Busy' : 'Online'} · Lv${u.level || 1}${u.voiceActive ? ' · 🎤' : ''}</div></div></div>`;
+    const acts = document.createElement('div'); acts.style.display = 'flex'; acts.style.gap = '6px';
+    const isFriend = (myFriendsData.friends || []).some(f => f.username === u.username);
+    if (!isFriend){
+      const fb = document.createElement('button'); fb.className = 'btn btn-secondary btn-sm'; fb.textContent = '+साथी';
+      fb.onclick = () => addFriendByUsername(u.username);
+      acts.appendChild(fb);
+    }
     if (!busy){
       const btn = document.createElement('button'); btn.className = 'btn btn-primary btn-sm';
       btn.textContent = lang === 'ne' ? 'चुनौती' : 'Invite';
       btn.onclick = () => sendReq(u.username, u.displayName);
-      row.appendChild(btn);
+      acts.appendChild(btn);
     }
+    row.appendChild(acts);
     list.appendChild(row);
   });
   if (!list.children.length){
-    list.innerHTML = `<p class="sub">${lang === 'ne' ? 'अहिले अरू खेलाडी अनलाइन छैनन्। प्ले ट्याबबाट Quick Match वा Computer सँग खेल्नुहोस्!' : 'No other players online right now. Try Quick Match or vs Computer!'}</p>`;
+    list.innerHTML = `<p class="sub">${lang === 'ne' ? 'अहिले अरू खेलाडी अनलाइन छैनन्।' : 'No other players online right now.'}</p>`;
   }
 
   const rq = await api('/api/lobby/play-requests?u=' + encodeURIComponent(auth.username));
@@ -1177,81 +1655,189 @@ async function loadLeaderboard(){
   (j.players || []).forEach((p, idx) => {
     const row = document.createElement('div'); row.className = 'user-row';
     const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx+1}`;
-    row.innerHTML = `<div style="display:flex;align-items:center;gap:10px"><span class="num" style="width:28px;font-weight:700">${medal}</span><div><div style="font-weight:700;font-size:14px">${esc(p.displayName || p.username)}</div><div class="sub num">Lv ${p.level || 1} · ${p.wins || 0} Wins</div></div></div><span class="num" style="color:var(--gold);font-weight:700">${p.rankScore || 0}</span>`;
+    row.innerHTML = `<div style="display:flex;align-items:center;gap:10px"><span class="num" style="width:28px;font-weight:700">${medal}</span><div><div style="font-weight:700;font-size:13px">${esc(p.displayName || p.username)}</div><div class="sub num">Lv ${p.level || 1} · ${p.wins || 0} Wins</div></div></div><span class="num" style="color:var(--gold);font-weight:700">${p.rankScore || 0}</span>`;
     box.appendChild(row);
   });
-  if (!box.children.length){
-    box.innerHTML = `<p class="sub">${lang === 'ne' ? 'खेलाडी विवरण लोड हुन अनलाइन खेल खेल्नुहोस्।' : 'Play online games to climb the leaderboard.'}</p>`;
+  if (!box.children.length) box.innerHTML = `<p class="sub">${lang === 'ne' ? 'अनलाइन खेल खेलेपछि लिडरबोर्ड भरिन्छ।' : 'Play online games to climb the leaderboard.'}</p>`;
+}
+
+const dismissedPlayReqIds = new Set();
+let activePlayReq = null;
+
+function renderPlayInvitePopup(r){
+  activePlayReq = r;
+  if (!r){ closeModal('playInviteModal'); return; }
+  const av = r.avatarPhoto
+    ? `<img class="invite-avatar" src="${r.avatarPhoto}" alt="">`
+    : `<span class="invite-avatar">${esc((r.fromName || r.from || '?').slice(0, 1).toUpperCase())}</span>`;
+  const stakeTxt = r.stake > 0 ? `${r.stake} Fun` : (lang === 'ne' ? 'निःशुल्क (Free)' : 'Free');
+  $('playInviteHeading').textContent = lang === 'ne' ? '🎲 खेल्ने अनुरोध आयो!' : '🎲 Game Request!';
+  $('playInviteBody').innerHTML = `
+    <div class="invite-profile-card">
+      ${av}
+      <div style="flex:1;min-width:0">
+        <div style="font-size:16px;font-weight:800;color:#fde68a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.fromName || r.from)}</div>
+        <div class="sub num" style="font-size:12px">@${esc(r.from)} · Lv ${r.level || 1} · ${r.wins || 0} Wins</div>
+        <div class="sub" style="font-size:12px;color:var(--txt);margin-top:4px">${lang === 'ne' ? 'तपाईंलाई लुडो खेल्न बोलाउनुभएको छ · बाँजी: ' : 'Invited you to play Ludo · Stake: '}<b>${stakeTxt}</b></div>
+      </div>
+    </div>`;
+  $('acceptPlayInviteBtn').textContent = lang === 'ne' ? '✓ स्वीकार (Accept)' : '✓ Accept';
+  $('declinePlayInviteBtn').textContent = lang === 'ne' ? '✕ रद्द (Cancel)' : '✕ Cancel';
+  if (!$('playInviteModal').classList.contains('open')) playSound('emote');
+  openModal('playInviteModal');
+}
+
+async function dismissActiveInvite(){
+  if (!activePlayReq) return closeModal('playInviteModal');
+  const r = activePlayReq;
+  dismissedPlayReqIds.add(r.id);
+  activePlayReq = null;
+  closeModal('playInviteModal');
+  if (auth) await api('/api/lobby/clear-request', {method: 'POST', body: JSON.stringify({username: auth.username, id: r.id})}).catch(() => {});
+  pollInvite();
+}
+$('declinePlayInviteBtn').onclick = dismissActiveInvite;
+$('closePlayInviteX').onclick = dismissActiveInvite;
+$('acceptPlayInviteBtn').onclick = async () => {
+  if (!auth || !activePlayReq) return;
+  const r = activePlayReq;
+  dismissedPlayReqIds.add(r.id);
+  activePlayReq = null;
+  closeModal('playInviteModal');
+  const res = await api('/api/lobby/accept-request', {method: 'POST', body: JSON.stringify({username: auth.username, id: r.id})});
+  if (!res.ok) return toast(res.error || 'Request expired');
+  // Leave any unlocked waiting room before joining the shared room
+  if (isPlaying() && !isMatchRunning() && socket){
+    const oldWs = socket;
+    socket = null; roomData = null; gameModeType = null; roomId = null;
+    try { if (oldWs.readyState === 1) oldWs.send(JSON.stringify({type: 'leave'})); } catch {}
+    setTimeout(() => { try { oldWs.close(); } catch {} }, 120);
+  }
+  connectOnlineRoom(res.roomCode, !res.hasHostRoom, res.stake || 0, res.mode || 'classic');
+};
+
+async function pollInvite(){
+  if (!auth) return;
+  if (!socket){
+    const j = await api('/api/lobby/my-invite?u=' + encodeURIComponent(auth.username)).catch(() => ({}));
+    if (j.invite && j.invite.guest === auth.username){
+      toast(lang === 'ne' ? 'खेल मिल्यो — जोडिँदैछ...' : 'Match found — joining...');
+      connectOnlineRoom(j.invite.roomCode, false, j.invite.stake || 0, j.invite.mode || 'classic');
+      return;
+    }
+  }
+  if (isMatchRunning()) return;
+  const rq = await api('/api/lobby/play-requests?u=' + encodeURIComponent(auth.username)).catch(() => ({}));
+  const list = (rq.requests || []).filter(r => !dismissedPlayReqIds.has(r.id));
+  if (list.length){
+    if (!activePlayReq || !list.some(x => x.id === activePlayReq.id)){
+      renderPlayInvitePopup(list[0]);
+    }
+  } else if (activePlayReq){
+    activePlayReq = null;
+    closeModal('playInviteModal');
   }
 }
 
-async function pollInvite(){
-  if (!auth || socket) return;
-  const j = await api('/api/lobby/my-invite?u=' + encodeURIComponent(auth.username));
-  if (j.invite && j.invite.guest === auth.username){
-    toast(lang === 'ne' ? 'खेल मिल्यो — जोडिँदैछ...' : 'Match found — joining...');
-    connectOnlineRoom(j.invite.roomCode, false, j.invite.stake || 0, 'classic');
+function genRoomCode(){
+  return Math.random().toString(36).slice(2, 8).toUpperCase().padEnd(6, 'A').slice(0, 6);
+}
+
+async function sendReq(to, name){
+  if (!auth) return openAuth('login');
+  const stake = Number($('stakeSel')?.value) || 0;
+  let sharedCode = (gameModeType === 'online' && roomId && !roomData?.locked && !roomData?.state) ? roomId : '';
+  if (!sharedCode){
+    sharedCode = genRoomCode();
+    connectOnlineRoom(sharedCode, true, stake, 'classic');
+  }
+  await api('/api/lobby/play-request', {
+    method: 'POST',
+    body: JSON.stringify({
+      from: auth.username,
+      fromName: auth.user.displayName || auth.username,
+      avatarPhoto: auth.user.avatarPhoto || '',
+      level: auth.user.level || 1,
+      wins: auth.user.wins || 0,
+      to, stake, mode: 'classic', roomCode: sharedCode
+    })
+  });
+  toast((lang === 'ne' ? 'कोठामा खेल्ने अनुरोध पठाइयो → ' : 'Room invite sent → ') + (name || to));
+}
+
+async function openInviteFriendsModal(){
+  if (!auth) return openAuth('login');
+  openModal('inviteFriendsModal');
+  const box = $('inviteFriendsList');
+  box.innerHTML = `<p class="sub">${lang === 'ne' ? 'खेलाडी लोड हुँदै...' : 'Loading players...'}</p>`;
+  await refreshFriends();
+  const onRes = await api('/api/lobby/online').catch(() => ({ users: [] }));
+  const friends = myFriendsData.friends || [];
+  const friendNames = new Set(friends.map(f => f.username));
+  const others = (onRes.users || []).filter(u => u.username !== auth.username && !friendNames.has(u.username));
+  const combined = [...friends, ...others];
+  const inRoom = new Set(currentPlayers().map(p => p.username));
+  box.innerHTML = '';
+  combined.forEach(u => {
+    const st = u.status || 'online';
+    const d = document.createElement('div'); d.className = 'user-row';
+    const av = u.avatarPhoto
+      ? `<img class="item-thumb" style="width:36px;height:36px;border-radius:50%" src="${u.avatarPhoto}" alt="">`
+      : `<span class="item-thumb" style="width:36px;height:36px;border-radius:50%;font-size:15px">👤</span>`;
+    const stLbl = st === 'online' ? 'Online' : st === 'busy' ? 'In Game' : 'Offline';
+    d.innerHTML = `<div style="display:flex;align-items:center;gap:9px;min-width:0">${av}<div style="min-width:0"><div style="font-weight:700;font-size:13px">${esc(u.displayName || u.username)}</div><div class="sub num" style="font-size:11px"><span class="status-dot ${st}" style="margin-right:4px"></span>${stLbl} · Lv${u.level || 1}</div></div></div>`;
+    if (inRoom.has(u.username)){
+      const s = document.createElement('span'); s.className = 'sub'; s.style.fontSize = '11px'; s.textContent = lang === 'ne' ? 'कोठामै' : 'In Room';
+      d.appendChild(s);
+    } else if (st === 'online'){
+      const b = document.createElement('button'); b.className = 'btn btn-primary btn-sm'; b.textContent = lang === 'ne' ? 'बोलाउनुहोस्' : 'Invite';
+      b.onclick = async () => { b.disabled = true; b.textContent = '✓'; await sendReq(u.username, u.displayName || u.username); };
+      d.appendChild(b);
+    } else {
+      const s = document.createElement('span'); s.className = 'sub'; s.style.fontSize = '11px'; s.textContent = stLbl;
+      d.appendChild(s);
+    }
+    box.appendChild(d);
+  });
+  if (!box.children.length){
+    box.innerHTML = `<p class="sub">${lang === 'ne' ? 'अहिले अरू अनलाइन साथी छैनन्। बोट थप्न वा साथी थप्न सक्नुहुन्छ।' : 'No other online friends right now.'}</p>`;
   }
 }
-async function sendReq(to, name){
-  const stake = Number($('stakeSel').value) || 0;
-  await api('/api/lobby/play-request', {method: 'POST', body: JSON.stringify({from: auth.username, fromName: auth.user.displayName, to, stake})});
-  toast((lang === 'ne' ? 'अनुरोध पठाइयो → ' : 'Challenge sent → ') + name);
-}
+$('btnInviteRoom').onclick = openInviteFriendsModal;
+
 $('btnDaily').onclick = async () => {
-  if (!auth) return openModal('authModal');
+  if (!auth) return openAuth('login');
   const j = await api('/api/user/' + auth.username + '/daily-login', {method: 'POST', body: JSON.stringify({token: auth.token})});
   if (j.ok){ auth.user = j.user; save(); updateAuthHeader(); toast(j.already ? 'आजको बोनस लिइसक्नुभयो' : '+५० दैनिक फन मिल्यो!'); }
   else toast(j.error || 'Failed');
 };
 
-// Quick Match & Private Rooms
-async function startQuickMatch(maxPlayers){
-  if (!auth){ openModal('authModal'); return; }
-  const stake = Number($('stakeSel')?.value) || 0;
+async function startQuickMatch(maxPlayers, customStake = null, customMode = 'classic'){
+  if (!auth){ pendingOnlineAfterAuth = true; openAuth('login'); return; }
+  const stake = customStake !== null ? Number(customStake) : (Number($('stakeSel')?.value) || 0);
   const j = await api('/api/lobby/quick-match', {
-    method: 'POST', body: JSON.stringify({username: auth.username, stake, mode: 'classic', maxPlayers})
+    method: 'POST', body: JSON.stringify({username: auth.username, stake, mode: customMode || 'classic', maxPlayers})
   });
   if (!j.ok) return toast(j.error || 'Quick match failed');
   connectOnlineRoom(j.roomCode, j.create, j.stake || 0, j.mode || 'classic');
 }
-$('quick2Btn').onclick = () => startQuickMatch(2);
-$('quick4Btn').onclick = () => startQuickMatch(4);
-$('createRoomBtn').onclick = () => {
-  if (!auth){ openModal('authModal'); return; }
-  const code = Math.random().toString(36).slice(2, 8).toUpperCase().padEnd(6, 'A').slice(0, 6);
-  connectOnlineRoom(code, true, Number($('stakeSel')?.value) || 0, 'classic');
-};
-$('joinRoomBtn').onclick = () => {
-  if (!auth){ openModal('authModal'); return; }
-  $('joinCodeInput').value = '';
-  openModal('joinModal');
-};
-$('confirmJoinBtn').onclick = () => {
-  const code = $('joinCodeInput').value.trim().toUpperCase();
-  if (code.length !== 6) return toast(lang === 'ne' ? '६ अक्षरको कोड राख्नुहोस्' : 'Enter 6-character code');
-  closeModal('joinModal');
-  connectOnlineRoom(code, false, 0, 'classic');
-};
 
-// ===================== SHOP / MARKET / PROFILE =====================
+// ===================== SHOP / BUYER-ONLY MARKET / PROFILE =====================
 async function loadShop(){
   const j = await api('/api/shop/get'); shop = j.config; if (!shop) return;
   const soft = $('shopSoft'); soft.innerHTML = '';
   const addGroup = (title, items, kind) => {
-    const sec = document.createElement('div'); sec.style.marginBottom = '20px';
-    sec.innerHTML = `<h2 style="font-size:17px;margin-bottom:10px">${title}</h2>`;
+    const sec = document.createElement('div'); sec.style.marginBottom = '18px';
+    sec.innerHTML = `<h2 style="font-size:16px;margin-bottom:8px">${title}</h2>`;
     const grid = document.createElement('div'); grid.className = 'grid-3';
     (items || []).forEach(p => {
       if ((p.priceCoins || 0) === 0 && (p.priceFun || 0) === 0 && p.id === 'default') return;
       const card = document.createElement('div'); card.className = 'item-card';
-      const thumb = p.imageUrl
-        ? `<img class="item-thumb" src="${p.imageUrl}" alt="${esc(p.label)}">`
-        : `<span class="item-thumb">${p.emoji || '🎨'}</span>`;
-      card.innerHTML = `<div class="item-head">${thumb}<div><div style="font-weight:700">${esc(p.label)}</div><div class="sub num">${p.priceCoins || 0} Coins · Lv ${p.minLevel || 1}</div></div></div>`;
+      const thumb = p.imageUrl ? `<img class="item-thumb" src="${p.imageUrl}" alt="${esc(p.label)}">` : `<span class="item-thumb">${p.emoji || '🎨'}</span>`;
+      card.innerHTML = `<div class="item-head">${thumb}<div><div style="font-weight:700;font-size:14px">${esc(p.label)}</div><div class="sub num">${p.priceCoins || 0} Coins · Lv ${p.minLevel || 1}</div></div></div>`;
       const b = document.createElement('button'); b.className = 'btn btn-primary btn-sm'; b.textContent = lang === 'ne' ? 'किन्नुहोस्' : 'Buy';
       b.onclick = async () => {
-        if (!auth) return openModal('authModal');
+        if (!auth) return openAuth('login');
         const r = await api('/api/user/' + auth.username + '/buy-soft', {method: 'POST', body: JSON.stringify({kind, id: p.id, token: auth.token})});
         if (r.ok){ auth.user = r.user; save(); updateAuthHeader(); toast('किनियो: ' + p.label); renderProfile(); }
         else toast(r.error || 'Failed');
@@ -1292,7 +1878,7 @@ function startPay(packageType, pack){
   $('payMethod').onchange = upd; upd();
 }
 $('btnSubmitPay').onclick = async () => {
-  if (!auth) return openModal('authModal');
+  if (!auth) return openAuth('login');
   if (!pendingBuy) return;
   let proofData = '', proofMime = '';
   const f = $('payProof').files?.[0];
@@ -1308,28 +1894,35 @@ $('btnSubmitPay').onclick = async () => {
 async function loadMarket(){
   const j = await api('/api/shop/market-list');
   const el = $('marketList'); el.innerHTML = '';
+  const u = auth?.user;
   (j.listings || []).forEach(L => {
-    const d = document.createElement('div'); d.className = 'user-row';
-    d.innerHTML = `<div><b>${esc(L.itemType)}:${esc(L.itemId)}</b><div class="sub num">by ${esc(L.seller)} · ${L.priceFun || 0} Fun · ${L.priceCoins || 0} Coins</div></div>`;
-    if (auth && L.seller !== auth.username){
-      const b = document.createElement('button'); b.className = 'btn btn-primary btn-sm'; b.textContent = 'Buy';
-      b.onclick = async () => {
-        const r = await api('/api/shop/market-buy', {method: 'POST', body: JSON.stringify({listingId: L.id, buyer: auth.username, token: auth.token})});
-        if (r.ok){ toast('Bought'); const me = await api('/api/user/' + auth.username + '/me'); if (me.ok){ auth.user = me.user; save(); updateAuthHeader(); } loadMarket(); }
-        else toast(r.error || 'Failed');
-      };
-      d.appendChild(b);
-    }
-    el.appendChild(d);
+    const owned = u && (
+      (L.itemType === 'skin' && (u.ownedSkins || []).includes(L.itemId)) ||
+      (L.itemType === 'avatar' && (u.ownedAvatars || []).includes(L.itemId)) ||
+      (L.itemType === 'mic' && (u.ownedMics || []).includes(L.itemId)) ||
+      (L.itemType === 'room' && (u.roomDecor || []).includes(L.itemId))
+    );
+    const d = document.createElement('div'); d.className = 'item-card';
+    d.innerHTML = `<div class="item-head"><span class="item-thumb">${esc(L.emoji || '🎁')}</span><div><div style="font-weight:700">${esc(L.label || (L.itemType + ':' + L.itemId))}</div><div class="sub num">${L.priceFun ? L.priceFun + ' Fun' : ''}${L.priceFun && L.priceCoins ? ' · ' : ''}${L.priceCoins ? L.priceCoins + ' Coins' : ''}</div></div></div>`;
+    const b = document.createElement('button');
+    b.className = 'btn btn-sm ' + (owned ? 'btn-secondary' : 'btn-primary');
+    b.textContent = owned ? (lang === 'ne' ? 'तपाईंसँग छ' : 'Owned') : (lang === 'ne' ? 'किन्नुहोस्' : 'Buy');
+    b.disabled = !!owned;
+    b.onclick = async () => {
+      if (!auth) return openAuth('login');
+      const r = await api('/api/shop/market-buy', {method: 'POST', body: JSON.stringify({listingId: L.id, buyer: auth.username, token: auth.token})});
+      if (r.ok){
+        toast(lang === 'ne' ? 'सामान किनियो!' : 'Purchased!');
+        if (r.user){ auth.user = r.user; save(); updateAuthHeader(); }
+        loadMarket(); renderProfile();
+      } else toast(r.error || 'Failed');
+    };
+    d.appendChild(b); el.appendChild(d);
   });
-  if (!el.children.length) el.innerHTML = `<p class="sub">${lang === 'ne' ? 'अहिले बजारमा कुनै सामान छैन।' : 'No items listed yet.'}</p>`;
+  if (!el.children.length){
+    el.innerHTML = `<p class="sub">${lang === 'ne' ? 'अहिले एडमिनले बजारमा सामान राख्नुभएको छैन।' : 'No admin items listed in the market yet.'}</p>`;
+  }
 }
-$('btnListSell').onclick = async () => {
-  if (!auth) return openModal('authModal');
-  const item = {seller: auth.username, itemType: $('sellType').value, itemId: $('sellId').value.trim(), priceFun: Number($('sellFun').value) || 0, priceCoins: Number($('sellCoins').value) || 0};
-  const j = await api('/api/shop/market-add', {method: 'POST', body: JSON.stringify(item)});
-  if (j.ok){ toast('Listed'); loadMarket(); } else toast(j.error || 'Failed');
-};
 
 function renderProfile(){
   const has = !!auth?.user;
@@ -1339,18 +1932,18 @@ function renderProfile(){
   const u = auth.user;
   $('profileName').value = u.displayName || u.username;
   const photo = u.avatarPhoto
-    ? `<img class="item-thumb" style="width:62px;height:62px;border-radius:50%;border:2px solid var(--gold)" src="${u.avatarPhoto}" alt="">`
-    : `<div class="item-thumb" style="width:62px;height:62px;border-radius:50%;border:2px solid var(--gold)">👤</div>`;
+    ? `<img class="item-thumb" style="width:58px;height:58px;border-radius:50%;border:2px solid var(--gold)" src="${u.avatarPhoto}" alt="">`
+    : `<div class="item-thumb" style="width:58px;height:58px;border-radius:50%;border:2px solid var(--gold)">👤</div>`;
   const decorIcons = {diyo:'🪔',lamp:'💡',dhaka:'🧢',sarangi:'🎻',trophy:'🏆',sofa:'🛋️'};
-  const items = (u.roomDecorEquipped || []).map(x => `<span style="padding:4px 8px;background:var(--surface-2);border-radius:8px;font-size:13px">${decorIcons[x] || '✨'} ${esc(x)}</span>`).join('');
-  $('roomPreview').innerHTML = `${photo}<div style="flex:1;min-width:160px"><div style="font-size:17px;font-weight:800">${esc(u.displayName || u.username)}</div><div class="sub num">@${esc(u.username)} · Lv ${u.level || 1} · ${u.wins || 0} Wins · ${u.games || 0} Games</div></div><div style="display:flex;gap:6px;flex-wrap:wrap">${items}</div>`;
+  const items = (u.roomDecorEquipped || []).map(x => `<span style="padding:3px 7px;background:var(--surface-2);border-radius:8px;font-size:12px">${decorIcons[x] || '✨'} ${esc(x)}</span>`).join('');
+  $('roomPreview').innerHTML = `${photo}<div style="flex:1;min-width:150px"><div style="font-size:16px;font-weight:800">${esc(u.displayName || u.username)}</div><div class="sub num">@${esc(u.username)} · Lv ${u.level || 1} · ${u.wins || 0} Wins</div></div><div style="display:flex;gap:5px;flex-wrap:wrap">${items}</div>`;
   $('profCard').innerHTML = `<div class="sub num">Fun: <b>${u.funTokens || 0}</b> (+${u.dailyFunTokens || 0} daily) · Coins: <b>${u.coins || 0}</b> · Voice: <b>${u.voiceActive ? fmtMs(u.voiceRemainingMs) : 'Off'}</b> · Ref: <b>${u.referralCode || '—'}</b></div>`;
 
   const box = $('equipBox'); box.innerHTML = '';
   (u.ownedSkins || []).forEach(id => {
     const b = document.createElement('button'); b.className = 'btn btn-sm ' + (u.equippedSkin === id ? 'btn-primary' : 'btn-secondary');
     b.textContent = 'Skin: ' + id;
-    b.onclick = async () => { const j = await api('/api/user/' + auth.username + '/equip', {method: 'POST', body: JSON.stringify({skinId: id, token: auth.token})}); if (j.ok){ auth.user = j.user; save(); updateAuthHeader(); renderProfile(); } };
+    b.onclick = async () => { const j = await api('/api/user/' + auth.username + '/equip', {method: 'POST', body: JSON.stringify({skinId: id, token: auth.token})}); if (j.ok){ auth.user = j.user; save(); applyBoardSkin(id); updateAuthHeader(); renderProfile(); } };
     box.appendChild(b);
   });
   (u.ownedAvatars || ['default']).forEach(id => {
@@ -1368,7 +1961,7 @@ function renderProfile(){
 
   const decor = $('decorBox'); decor.innerHTML = '';
   (u.roomDecor || []).forEach(id => {
-    const lbl = document.createElement('label'); lbl.style.display = 'inline-flex'; lbl.style.alignItems = 'center'; lbl.style.gap = '6px'; lbl.style.marginRight = '12px';
+    const lbl = document.createElement('label'); lbl.style.display = 'inline-flex'; lbl.style.alignItems = 'center'; lbl.style.gap = '6px'; lbl.style.marginRight = '10px';
     const cb = document.createElement('input'); cb.type = 'checkbox'; cb.style.width = 'auto'; cb.style.minHeight = 'auto'; cb.checked = (u.roomDecorEquipped || []).includes(id); cb.dataset.decor = id;
     lbl.append(cb, document.createTextNode(id)); decor.appendChild(lbl);
   });
@@ -1381,7 +1974,7 @@ function renderProfile(){
     };
     decor.appendChild(sv);
   } else {
-    decor.innerHTML = `<p class="sub">${lang === 'ne' ? 'पसलबाट कोठा सजावट किन्नुहोस्।' : 'Buy decor items in the Shop first.'}</p>`;
+    decor.innerHTML = `<p class="sub">${lang === 'ne' ? 'पसल वा बजारबाट कोठा सजावट किन्नुहोस्।' : 'Buy decor items in the Shop or Market first.'}</p>`;
   }
 }
 
@@ -1409,8 +2002,7 @@ $('btnGift').onclick = async () => {
   if (j.ok){ auth.user = j.user; save(); updateAuthHeader(); toast('Voice gifted!'); } else toast(j.error || 'Failed');
 };
 
-// ===================== LUDO BOARD GEOMETRY (EXACT LUDO KING) =====================
-// 52 outer cells indexed 0..51 starting at Red [6,1]
+// ===================== LUDO BOARD GEOMETRY =====================
 const RING = [
   [6,1],[6,2],[6,3],[6,4],[6,5],
   [5,6],[4,6],[3,6],[2,6],[1,6],[0,6],[0,7],[0,8],
@@ -1432,6 +2024,7 @@ const COLOR_NE = ['रातो','हरियो','पहेंलो','नी�
 const SAFE_GLOBAL = new Set([0, 8, 13, 21, 26, 34, 39, 47]);
 const STAR_CELLS = new Set(['2,6', '6,12', '12,8', '8,2']);
 const START_CELLS = { '6,1': ['red','➔'], '1,8': ['green','⬇'], '8,13': ['yellow','⬅'], '13,6': ['blue','⬆'] };
+const DECOR_GLYPHS = {diyo:'🪔',lamp:'💡',dhaka:'🧢',sarangi:'🎻',trophy:'🏆',sofa:'🛋️'};
 
 function getCoord(seat, pos){
   if (pos < 0) return null;
@@ -1439,15 +2032,13 @@ function getCoord(seat, pos){
   if (pos >= 51) return HOME_LANES[seat][pos - 51];
   return RING[(seat * 13 + pos) % 52];
 }
-
 function buildBoard(){
   const b = $('board'); b.innerHTML = '';
   b.className = 'skin-' + (selectedBoardSkin || 'default');
   for (let r = 0; r < 15; r++){
     for (let c = 0; c < 15; c++){
       const el = document.createElement('div');
-      el.className = 'cell';
-      el.dataset.rc = r + ',' + c;
+      el.className = 'cell'; el.dataset.rc = r + ',' + c;
       if (r >= 6 && r <= 8 && c >= 6 && c <= 8) el.classList.add('center-cell');
       else if (c === 7 && r >= 1 && r <= 5) el.classList.add('lane', 'green');
       else if (r === 7 && c >= 1 && c <= 5) el.classList.add('lane', 'red');
@@ -1476,64 +2067,99 @@ function buildBoard(){
     base.appendChild(inner); b.appendChild(base);
   });
   const ch = document.createElement('div'); ch.className = 'center-home'; ch.id = 'centerHome';
-  ch.innerHTML = '<span class="center-crown">👑</span>';
+  const crownGlyph = skinCrownGlyph(selectedBoardSkin);
+  ch.innerHTML = `<span class="center-crown">${crownGlyph}</span>`;
   b.appendChild(ch);
 }
 
-// Dice Pip Rendering (3x3 grid: indices 0..8)
-const DICE_PIPS = {
-  1: [4],
-  2: [0, 8],
-  3: [0, 4, 8],
-  4: [0, 2, 6, 8],
-  5: [0, 2, 4, 6, 8],
-  6: [0, 2, 3, 5, 6, 8]
+const DICE_PIPS = { 1:[4], 2:[0,8], 3:[0,4,8], 4:[0,2,6,8], 5:[0,2,4,6,8], 6:[0,2,3,5,6,8] };
+const DICE_FACE_ROT = {
+  1: [0, 0],
+  2: [0, -90],
+  3: [-90, 0],
+  4: [90, 0],
+  5: [0, 90],
+  6: [0, 180]
 };
-function renderDiceFace(val, seatColorIdx = -1){
+let diceSpinCycles = 0;
+
+function initDiceCube(){
   const btn = $('diceBtn');
-  const activeSet = new Set(DICE_PIPS[val || 6]);
-  btn.innerHTML = '';
-  for (let i = 0; i < 9; i++){
-    const p = document.createElement('span');
-    p.className = 'pip' + (activeSet.has(i) ? ' on' : '');
-    btn.appendChild(p);
+  if (btn.querySelector('.dice-cube')) return;
+  let facesHtml = '';
+  for (let v = 1; v <= 6; v++){
+    const set = new Set(DICE_PIPS[v]);
+    let pips = '';
+    for (let i = 0; i < 9; i++) pips += `<span class="pip${set.has(i) ? ' on' : ''}"></span>`;
+    facesHtml += `<div class="dice-face f${v}">${pips}</div>`;
   }
+  btn.innerHTML = `<div class="dice-scene" id="diceScene"><div class="dice-cube" id="diceCube">${facesHtml}</div></div>`;
+}
+
+function renderDiceFace(val, seatColorIdx = -1, animateRoll = false){
+  initDiceCube();
+  const btn = $('diceBtn'), cube = $('diceCube'), scene = $('diceScene');
+  const v = Math.min(6, Math.max(1, Number(val) || 6));
+  const [bx, by] = DICE_FACE_ROT[v];
+  if (animateRoll){
+    diceSpinCycles += 1;
+    scene.classList.remove('tossing'); void scene.offsetWidth; scene.classList.add('tossing');
+  }
+  const rx = bx + diceSpinCycles * 720;
+  const ry = by + diceSpinCycles * 720 + (diceSpinCycles % 2) * 360;
+  cube.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg)`;
   btn.classList.remove('tint-0','tint-1','tint-2','tint-3');
   if (seatColorIdx >= 0) btn.classList.add('tint-' + seatColorIdx);
 }
 
-// ===================== GAME ENGINE (LOCAL + ONLINE UNIFIED VIEW) =====================
-let gameModeType = null; // 'local-bot' | 'local-pass' | 'online'
+// ===================== GAME ENGINE (ZERO-SCROLL + DYNAMIC ROOM PODS) =====================
+let gameModeType = null;
 let localGame = null;
 let socket = null, roomId = null, roomData = null;
 let localStream = null, micOn = false, speakerOn = true, speakerVolume = 1;
 const peers = new Map(), pendingIce = new Map();
 const ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-let animBusy = false;
-let turnTimerHandle = null, turnSecsLeft = 25;
-let botLocalTimer = null;
+let animBusy = false, turnTimerHandle = null, turnSecsLeft = 25, botLocalTimer = null;
 
-// Setup Modal State
 let setupKind = 'bot';
-let setupCfg = { mode: 'classic', count: 2, mySeat: 0 };
+let setupCfg = { mode: 'classic', count: 2, mySeat: 3, onlineType: 'friends' };
 
 function openSetup(kind){
   setupKind = kind;
-  $('setupTitle').textContent = kind === 'bot'
-    ? (lang === 'ne' ? 'कम्प्युटर सँग खेल्नुहोस्' : 'Play vs Computer')
-    : (lang === 'ne' ? 'पास एण्ड प्ले सेटअप' : 'Pass & Play Setup');
-  $('botColorWrap').style.display = kind === 'bot' ? 'block' : 'none';
+  if (kind === 'online'){
+    $('setupTitle').textContent = lang === 'ne' ? 'अनलाइन खेल सेटअप' : 'Online Match Setup';
+    $('localCountWrap').style.display = 'none';
+    $('onlineOptsWrap').style.display = 'block';
+    $('botColorWrap').style.display = 'none';
+    if ($('setupOnlineStake') && $('stakeSel')) $('setupOnlineStake').value = $('stakeSel').value || '0';
+  } else {
+    $('setupTitle').textContent = kind === 'bot'
+      ? (lang === 'ne' ? 'कम्प्युटर सँग खेल्नुहोस्' : 'Play vs Computer')
+      : (lang === 'ne' ? 'पास एण्ड प्ले सेटअप' : 'Pass & Play Setup');
+    $('localCountWrap').style.display = 'block';
+    $('onlineOptsWrap').style.display = 'none';
+    $('botColorWrap').style.display = kind === 'bot' ? 'block' : 'none';
+  }
   renderPassNameInputs();
   openModal('setupModal');
 }
-$('openBotSetupBtn').onclick = () => openSetup('bot');
-$('openPassSetupBtn').onclick = () => openSetup('pass');
+
+$('homeGameSelect').onchange = updateHomeModeHint;
+$('homePlayBtn').onclick = () => {
+  const kind = $('homeGameSelect')?.value || 'bot';
+  if (kind === 'online' && !auth){
+    pendingOnlineAfterAuth = true;
+    openAuth('login');
+    return;
+  }
+  openSetup(kind);
+};
 
 function renderPassNameInputs(){
   const wrap = $('passNamesWrap');
   if (setupKind !== 'pass'){ wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
   wrap.style.display = 'block';
-  const seats = setupCfg.count === 2 ? [0, 2] : setupCfg.count === 3 ? [0, 1, 2] : [0, 1, 2, 3];
+  const seats = setupCfg.count === 2 ? [3, 1] : setupCfg.count === 3 ? [3, 0, 1] : [3, 0, 1, 2];
   const defNames = ['खेलाडी १', 'खेलाडी २', 'खेलाडी ३', 'खेलाडी ४'];
   wrap.innerHTML = seats.map((s, idx) => `<div class="field"><label>${COLOR_NE[s]} (${COLORS[s]})</label><input class="pass-name-in" data-seat="${s}" value="${defNames[idx]}" maxlength="16"></div>`).join('');
 }
@@ -1547,6 +2173,10 @@ document.querySelectorAll('#setupCountSeg button').forEach(b => b.onclick = () =
   document.querySelectorAll('#setupCountSeg button').forEach(x => x.classList.toggle('active', x === b));
   renderPassNameInputs();
 });
+document.querySelectorAll('#setupOnlineSeg button').forEach(b => b.onclick = () => {
+  setupCfg.onlineType = b.dataset.online;
+  document.querySelectorAll('#setupOnlineSeg button').forEach(x => x.classList.toggle('active', x === b));
+});
 document.querySelectorAll('#setupColorSeg button').forEach(b => b.onclick = () => {
   setupCfg.mySeat = Number(b.dataset.seat);
   document.querySelectorAll('#setupColorSeg button').forEach(x => x.classList.toggle('active', x === b));
@@ -1554,6 +2184,15 @@ document.querySelectorAll('#setupColorSeg button').forEach(b => b.onclick = () =
 
 $('startLocalBtn').onclick = () => {
   closeModal('setupModal');
+  if (setupKind === 'online'){
+    if (!auth){ pendingOnlineAfterAuth = true; openAuth('login'); return; }
+    const stake = Number($('setupOnlineStake')?.value) || 0;
+    if ($('stakeSel')) $('stakeSel').value = String(stake);
+    if (setupCfg.onlineType === '2p') startQuickMatch(2, stake, setupCfg.mode);
+    else if (setupCfg.onlineType === '4p') startQuickMatch(4, stake, setupCfg.mode);
+    else connectOnlineRoom(genRoomCode(), true, stake, setupCfg.mode);
+    return;
+  }
   startLocalMatch();
 };
 
@@ -1561,64 +2200,57 @@ function startLocalMatch(){
   clearTimeout(botLocalTimer);
   gameModeType = setupKind === 'bot' ? 'local-bot' : 'local-pass';
   const cnt = setupCfg.count;
-  const seatSets = cnt === 2 ? [0, 2] : cnt === 3 ? [0, 1, 2] : [0, 1, 2, 3];
-  const botNames = ['सगरमाथा (AI)', 'मकालु (AI)', 'फेवा (AI)', 'रारा (AI)'];
+  const seatSets = cnt === 2 ? [3, 1] : cnt === 3 ? [3, 0, 1] : [3, 0, 1, 2];
+  const botNames = ['सगरमाथा (AI)', 'कम्प्युटर (AI)', 'फेवा (AI)', 'रारा (AI)'];
   const botAvatars = ['/assets/avatar_himal_hero.jpg', '/assets/avatar_durbar_royal.jpg', '/assets/avatar_himal_hero.jpg', '/assets/avatar_durbar_royal.jpg'];
   let players = [];
   if (setupKind === 'bot'){
     const mySeat = setupCfg.mySeat;
-    const allSeats = cnt === 2 ? [mySeat, (mySeat + 2) % 4] : cnt === 3 ? [mySeat, (mySeat + 1) % 4, (mySeat + 2) % 4] : [0, 1, 2, 3];
-    allSeats.sort((a, b) => a - b);
+    const allSeats = cnt === 2 ? [mySeat, (mySeat + 2) % 4] : cnt === 3 ? [mySeat, (mySeat + 1) % 4, (mySeat + 2) % 4] : [3, 0, 1, 2];
     players = allSeats.map(s => {
       const isMe = s === mySeat;
       return {
         username: isMe ? (auth?.username || 'player') : 'bot_' + s,
-        name: isMe ? (auth?.user?.displayName || (lang === 'ne' ? 'तपाईं' : 'You')) : botNames[s],
+        name: isMe ? (auth?.user?.displayName || (lang === 'ne' ? 'तपाईं (You)' : 'You')) : botNames[s],
         seat: s, tokens: [-1, -1, -1, -1],
         avatarPhoto: isMe ? (auth?.user?.avatarPhoto || '') : botAvatars[s],
+        roomDecorEquipped: isMe ? (auth?.user?.roomDecorEquipped || ['diyo']) : ['diyo'],
         isBot: !isMe, isHumanLocal: isMe, connected: true
       };
     });
   } else {
     const inputs = [...document.querySelectorAll('.pass-name-in')];
     players = seatSets.map((s, idx) => ({
-      username: 'p' + s,
-      name: inputs[idx]?.value.trim() || ('Player ' + (idx + 1)),
-      seat: s, tokens: [-1, -1, -1, -1],
-      avatarPhoto: '', isBot: false, isHumanLocal: true, connected: true
+      username: 'p' + s, name: inputs[idx]?.value.trim() || ('Player ' + (idx + 1)),
+      seat: s, tokens: [-1, -1, -1, -1], avatarPhoto: '', roomDecorEquipped: [],
+      isBot: false, isHumanLocal: true, connected: true
     }));
   }
   localGame = {
-    host: players[0].username,
-    mode: setupCfg.mode,
-    stake: 0, pot: 0, locked: true,
-    players,
-    chat: [],
+    host: players[0].username, mode: setupCfg.mode, stake: 0, pot: 0, locked: true, players, chat: [],
     state: { turn: 0, dice: 0, rolled: false, streak: 0, finished: false, winner: null }
   };
   roomData = localGame;
-  enterArena(setupKind === 'bot' ? (lang === 'ne' ? 'कम्प्युटर विरुद्ध लुडो' : 'vs Computer Ludo') : (lang === 'ne' ? 'पास एण्ड प्ले' : 'Pass & Play'));
+  enterArena(setupKind === 'bot' ? 'vs Computer' : 'Pass & Play');
+  playSound('start');
   renderGame();
+  resetTurnTimer();
   scheduleLocalBot();
 }
 
-function enterArena(title){
-  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  $('view-game').classList.add('active');
-  $('arenaRoomTitle').textContent = title;
+function enterArena(){
+  animBusy = false;
+  switchTab('game');
   buildBoard();
   renderQuickEmotes();
   renderDiceFace(6, -1);
+  $('chatPopover').classList.remove('open');
 }
 
-// Quick Nepali Emotes
 const EMOTES = [
-  { emoji: '🙏', text: 'नमस्ते!' },
-  { emoji: '👏', text: 'राम्रो चाल!' },
-  { emoji: '😂', text: 'काटियो नि!' },
-  { emoji: '🔥', text: 'ल है पख्नुस्!' },
-  { emoji: '🍀', text: 'भाग्य बलियो!' },
-  { emoji: '⏱️', text: 'छिटो खेल्नुस्!' },
+  { emoji: '🙏', text: 'नमस्ते!' }, { emoji: '👏', text: 'राम्रो चाल!' },
+  { emoji: '😂', text: 'काटियो नि!' }, { emoji: '🔥', text: 'पख्नुस्!' },
+  { emoji: '🍀', text: 'भाग्य बलियो!' }, { emoji: '⏱️', text: 'छिटो!' },
   { emoji: '🎉', text: 'बधाई छ!' }
 ];
 function renderQuickEmotes(){
@@ -1633,6 +2265,7 @@ function renderQuickEmotes(){
         showSeatEmote(cur.seat, `${em.emoji} ${em.text}`);
         appendLocalChat(cur.name, `${em.emoji} ${em.text}`);
       }
+      $('chatPopover').classList.remove('open');
     };
     box.appendChild(b);
   });
@@ -1640,6 +2273,7 @@ function renderQuickEmotes(){
 function showSeatEmote(seat, label){
   const pod = document.querySelector('.seat-pod.seat-' + seat);
   if (!pod) return;
+  playSound('emote');
   pod.querySelectorAll('.emote-bubble').forEach(x => x.remove());
   const b = document.createElement('div'); b.className = 'emote-bubble'; b.textContent = label;
   pod.appendChild(b);
@@ -1652,7 +2286,9 @@ function appendLocalChat(name, text){
   renderChat();
 }
 
-// ===================== RENDER BOARD, PODS & DICE =====================
+$('chatPopoverBtn').onclick = () => $('chatPopover').classList.toggle('open');
+$('closeChatPopoverBtn').onclick = () => $('chatPopover').classList.remove('open');
+
 function currentPlayers(){ return roomData?.players || []; }
 function currentState(){ return roomData?.state || null; }
 
@@ -1675,7 +2311,6 @@ function legalMovesForActive(){
 }
 
 function renderGame(overridePos = null){
-  // Clear existing tokens
   document.querySelectorAll('.piece').forEach(x => x.remove());
   document.querySelectorAll('.cell').forEach(c => c.classList.remove('multi-2', 'multi-3', 'multi-4'));
 
@@ -1683,25 +2318,21 @@ function renderGame(overridePos = null){
   const canControl = canIControlTurn();
   const legal = canControl ? legalMovesForActive() : [];
 
-  // Group tokens by cell to support clean multi-token stacking
   const cellGroups = new Map();
-  ps.forEach((pl, pi) => {
+  ps.forEach(pl => {
     const seat = Number(pl.seat);
     pl.tokens.forEach((rawPos, ti) => {
       const p = (overridePos && overridePos.seat === seat && overridePos.token === ti) ? overridePos.pos : rawPos;
       let parent = null;
-      if (p < 0){
-        parent = $('base-' + COLORS[seat])?.children[ti];
-      } else if (p === 56){
-        parent = $('centerHome');
-      } else {
+      if (p < 0) parent = $('base-' + COLORS[seat])?.children[ti];
+      else if (p === 56) parent = $('centerHome');
+      else {
         const rc = getCoord(seat, p);
         if (rc) parent = $('board').querySelector(`[data-rc="${rc[0]},${rc[1]}"]`);
       }
       if (!parent) return;
       const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'piece ' + COLORS[seat];
+      btn.type = 'button'; btn.className = 'piece ' + COLORS[seat];
       const isPickable = canControl && s && ps[s.turn]?.seat === seat && legal.includes(ti) && !animBusy;
       if (isPickable) btn.classList.add('pick');
       btn.disabled = !isPickable;
@@ -1720,88 +2351,95 @@ function renderGame(overridePos = null){
     }
   });
 
-  // Render 4 corner pods (top: 0 Red, 1 Green | bottom: 3 Blue, 2 Yellow to match board corners!)
-  renderPodRow($('topSeats'), [0, 1], ps, s);
-  renderPodRow($('bottomSeats'), [3, 2], ps, s);
+  // Render ONLY active players in their respective top/bottom corners (0=TL, 1=TR, 3=BL, 2=BR)
+  renderDynamicPods($('topSeats'), [0, 1], ps, s);
+  renderDynamicPods($('bottomSeats'), [3, 2], ps, s);
 
-  // Dice & Turn Panel
   const activePl = s && !s.finished ? ps[s.turn] : null;
   if (!s){
     $('turnPlayerName').textContent = t('waitingPlayers');
-    $('turnHint').textContent = (roomData?.host === auth?.username) ? (lang === 'ne' ? 'खेल सुरु बटन थिच्नुहोस्' : 'Press Start Game') : '';
-    renderDiceFace(6, -1);
-    $('diceBtn').disabled = true;
+    $('turnHint').textContent = (roomData?.host === auth?.username)
+      ? (lang === 'ne' ? '📩 साथी बोलाउ वा सुरु थिच्नुहोस्' : 'Invite friends or press Start')
+      : (lang === 'ne' ? 'होस्टले सुरु गर्दै...' : 'Host starting...');
+    renderDiceFace(6, -1); $('diceBtn').disabled = true;
   } else if (s.finished){
     const winPl = ps[s.winner];
     $('turnPlayerName').textContent = '🏆 ' + (winPl?.name || '');
-    $('turnHint').textContent = lang === 'ne' ? 'खेल समाप्त भयो!' : 'Match Finished!';
+    $('turnHint').textContent = lang === 'ne' ? 'खेल समाप्त' : 'Finished';
     $('diceBtn').disabled = true;
   } else {
-    $('turnPlayerName').textContent = `${activePl?.name || ''} (${COLOR_NE[activePl?.seat || 0]})`;
+    $('turnPlayerName').textContent = `${activePl?.name || ''}`;
     renderDiceFace(s.dice || 6, activePl?.seat ?? 0);
     const canRollNow = canControl && !s.rolled && !animBusy;
     $('diceBtn').disabled = !canRollNow;
     if (canRollNow) $('turnHint').textContent = t('rollPrompt');
     else if (canControl && s.rolled) $('turnHint').textContent = t('pickTokenPrompt');
-    else $('turnHint').textContent = activePl?.isBot ? (lang === 'ne' ? 'बोट सोच्दैछ...' : 'Bot thinking...') : t('waitTurn');
+    else $('turnHint').textContent = activePl?.isBot ? (lang === 'ne' ? 'बोट पालो...' : 'Bot turn...') : t('waitTurn');
   }
 
-  // Room Action Buttons
   const isOnline = gameModeType === 'online';
   const isHost = isOnline && roomData?.host === auth?.username;
-  $('copyRoomCodeBtn').style.display = isOnline ? 'inline-flex' : 'none';
-  $('copyRoomCodeBtn').textContent = (lang === 'ne' ? 'कोड: ' : 'Code: ') + (roomId || '');
+  $('btnInviteRoom').style.display = (isOnline && !s && !roomData?.locked && ps.length < 4) ? 'inline-flex' : 'none';
   $('btnStart').style.display = (isHost && (!s || s.finished)) ? 'inline-flex' : 'none';
   $('btnAddBot').style.display = (isHost && (!s && !roomData?.locked) && ps.length < 4 && (roomData?.stake || 0) === 0) ? 'inline-flex' : 'none';
   const hasDC = isOnline && ps.some(p => p.connected === false);
   $('btnVote').style.display = (isOnline && s && !s.finished && hasDC) ? 'inline-flex' : 'none';
   $('speakerControls').style.display = isOnline ? 'flex' : 'none';
-  const modeLbl = (roomData?.mode === 'quick') ? 'Quick (1 Goti)' : 'Classic (4 Goti)';
-  $('arenaRoomMeta').textContent = isOnline
-    ? `${modeLbl} · Pot ${roomData?.pot || 0} · Stake ${roomData?.stake || 0}`
-    : `${modeLbl}`;
+  $('speakerVolume').style.display = isOnline ? 'block' : 'none';
   renderChat();
 }
 
-function renderPodRow(container, seatIds, ps, s){
+function renderDynamicPods(container, seatPair, ps, s){
   container.innerHTML = '';
-  seatIds.forEach(seat => {
-    const pl = ps.find(p => Number(p.seat) === seat);
-    const isTurn = !!pl && !!s && !s.finished && s.turn === ps.indexOf(pl);
+  const activeInRow = seatPair.map(seat => ({ seat, pl: ps.find(p => Number(p.seat) === seat) })).filter(x => !!x.pl);
+  container.classList.toggle('empty', activeInRow.length === 0);
+  if (!activeInRow.length) return;
+
+  activeInRow.forEach(({ seat, pl }) => {
+    const isLeftCorner = seat === 0 || seat === 3;
+    const isTurn = !!s && !s.finished && s.turn === ps.indexOf(pl);
     const pod = document.createElement('div');
-    pod.className = `seat-pod seat-${seat}` + (!pl ? ' vacant' : '') + (isTurn ? ' turn' : '');
-    if (!pl){
-      pod.innerHTML = `<span class="pod-avatar">+</span><div class="pod-meta"><div class="pod-name">${COLOR_NE[seat]}</div><div class="pod-sub">${lang === 'ne' ? 'खाली सिट' : 'Open seat'}</div></div>`;
-    } else {
-      const av = pl.avatarPhoto
-        ? `<img class="pod-avatar" src="${pl.avatarPhoto}" alt="">`
-        : `<span class="pod-avatar">${esc((pl.name || '?').slice(0, 1).toUpperCase())}</span>`;
-      const homeCount = pl.tokens.filter(x => x === 56).length;
-      const pips = [0,1,2,3].map(idx => `<span class="pod-pip${idx < homeCount ? ' home' : ''}"></span>`).join('');
-      const subText = pl.isBot ? 'AI Bot' : (pl.connected === false ? 'Reconnecting' : (isTurn ? (lang === 'ne' ? 'पालो' : 'Your turn') : COLOR_NE[seat]));
-      pod.innerHTML = `${av}<div class="pod-meta"><div class="pod-name">${esc(pl.name || pl.username)}</div><div class="pod-sub">${subText} · <span class="num">${homeCount}/4</span></div><div class="pod-pips">${pips}</div></div>`;
-      if (gameModeType === 'online' && !pl.isBot){
-        const isMe = pl.username === auth?.username;
-        const mic = document.createElement('button'); mic.type = 'button';
-        if (isMe){
-          mic.className = 'pod-mic ' + (auth.user.voiceActive ? (micOn ? 'on' : '') : 'locked');
-          mic.textContent = auth.user.voiceActive ? (micOn ? '🎤' : '🔇') : '🔒';
-          mic.onclick = () => toggleMyMic();
-        } else {
-          mic.className = 'pod-mic ' + (pl.voiceActive ? '' : 'locked');
-          mic.textContent = pl.voiceActive ? '🎤' : '🔒';
+    pod.className = `seat-pod seat-${seat} ${isLeftCorner ? 'side-left' : 'side-right'}` + (isTurn ? ' turn' : '');
+
+    const av = pl.avatarPhoto
+      ? `<img class="pod-avatar" src="${pl.avatarPhoto}" alt="">`
+      : `<span class="pod-avatar">${esc((pl.name || '?').slice(0, 1).toUpperCase())}</span>`;
+    const homeCount = pl.tokens.filter(x => x === 56).length;
+    const pips = [0,1,2,3].map(idx => `<span class="pod-pip${idx < homeCount ? ' home' : ''}"></span>`).join('');
+    const decorStr = (pl.roomDecorEquipped || []).slice(0, 3).map(d => DECOR_GLYPHS[d] || '').join('');
+    pod.innerHTML = `${av}<div class="pod-meta"><div class="pod-name">${esc(pl.name || pl.username)}</div><div class="pod-icons-row"><div class="pod-pips">${pips}</div>${decorStr ? `<span class="pod-decor" title="Room Decor">${decorStr}</span>` : ''}</div></div>`;
+
+    // Compact Feature Signals INSIDE the Player Room Card
+    if (gameModeType === 'online' && !pl.isBot){
+      const isMe = pl.username === auth?.username;
+      const mic = document.createElement('button'); mic.type = 'button';
+      if (isMe){
+        mic.className = 'pod-mini-btn ' + (auth.user.voiceActive ? (micOn ? 'on' : '') : 'locked');
+        mic.textContent = auth.user.voiceActive ? (micOn ? '🎤' : '🔇') : '🔒';
+        mic.title = 'Mic';
+        mic.onclick = () => toggleMyMic();
+      } else {
+        mic.className = 'pod-mini-btn ' + (pl.voiceActive ? '' : 'locked');
+        mic.textContent = pl.voiceActive ? '🎤' : '🔒';
+        const isFriend = (myFriendsData.friends || []).some(f => f.username === pl.username);
+        if (!isFriend){
+          const addF = document.createElement('button'); addF.type = 'button'; addF.className = 'pod-mini-btn';
+          addF.textContent = '👤+'; addF.title = 'Add Friend';
+          addF.onclick = () => addFriendByUsername(pl.username);
+          pod.appendChild(addF);
         }
-        pod.appendChild(mic);
-      } else if (gameModeType === 'online' && pl.isBot && roomData?.host === auth?.username && !roomData?.state){
-        const rm = document.createElement('button'); rm.type = 'button'; rm.className = 'pod-mic'; rm.textContent = '✕';
-        rm.onclick = () => sendWS({type: 'remove-bot', seat});
-        pod.appendChild(rm);
       }
-      if (isTurn){
-        const bar = document.createElement('div'); bar.className = 'pod-timer';
-        bar.innerHTML = `<div class="pod-timer-fill" id="activeTimerFill" style="transform:scaleX(${Math.max(0, turnSecsLeft / 25)})"></div>`;
-        pod.appendChild(bar);
-      }
+      pod.appendChild(mic);
+    } else if (gameModeType === 'online' && pl.isBot && roomData?.host === auth?.username && !roomData?.state){
+      const rm = document.createElement('button'); rm.type = 'button'; rm.className = 'pod-mini-btn'; rm.textContent = '✕';
+      rm.onclick = () => sendWS({type: 'remove-bot', seat});
+      pod.appendChild(rm);
+    }
+
+    if (isTurn){
+      const bar = document.createElement('div'); bar.className = 'pod-timer';
+      bar.innerHTML = `<div class="pod-timer-fill" id="activeTimerFill" style="transform:scaleX(${Math.max(0, turnSecsLeft / 25)})"></div>`;
+      pod.appendChild(bar);
     }
     container.appendChild(pod);
   });
@@ -1814,7 +2452,7 @@ function renderChat(){
   box.scrollTop = box.scrollHeight;
 }
 
-// ===================== TURN TIMER & STEP-BY-STEP HOP ANIMATION =====================
+// ===================== TURN TIMER & ANIMATION =====================
 function resetTurnTimer(){
   clearInterval(turnTimerHandle);
   turnSecsLeft = 25;
@@ -1825,7 +2463,6 @@ function resetTurnTimer(){
     const fill = $('activeTimerFill');
     if (fill) fill.style.transform = `scaleX(${turnSecsLeft / 25})`;
     if (turnSecsLeft === 0 && canIControlTurn() && !animBusy){
-      // Auto-act on timeout so local/online games never stall
       if (!s.rolled) $('diceBtn').click();
       else {
         const legal = legalMovesForActive();
@@ -1836,59 +2473,62 @@ function resetTurnTimer(){
 }
 
 async function animateTokenMove(seat, tokenIdx, fromPos, toPos){
-  if (fromPos < 0 || toPos <= fromPos){
-    playSound('step');
-    return;
-  }
+  if (fromPos < 0){ playSound('exit'); return; }
+  if (toPos <= fromPos){ playSound('step', 0); return; }
   animBusy = true;
+  let stepIdx = 0;
   for (let p = fromPos + 1; p < toPos; p++){
     renderGame({seat, token: tokenIdx, pos: p});
-    playSound('step');
+    playSound('step', stepIdx++);
     await new Promise(r => setTimeout(r, 85));
   }
   animBusy = false;
-  playSound('step');
+  playSound('step', stepIdx);
 }
 
-// ===================== LOCAL GAME RULES (BOTS & PASS-AND-PLAY) =====================
+// ===================== LOCAL GAME RULES =====================
 function localRoll(){
+  if (!localGame || animBusy) return;
   const s = localGame.state, pl = localGame.players[s.turn];
+  if (!pl || s.rolled || s.finished) return;
   const d = 1 + Math.floor(Math.random() * 6);
-  s.streak = d === 6 ? (s.streak || 0) + 1 : 0;
+  animBusy = true;
+  $('diceBtn').disabled = true;
   playSound('roll');
-  $('diceBtn').classList.remove('rolling');
-  void $('diceBtn').offsetWidth;
-  $('diceBtn').classList.add('rolling');
+  renderDiceFace(d, pl.seat, true);
 
-  if (s.streak >= 3){
-    s.streak = 0; s.dice = 0; s.rolled = false;
-    s.turn = (s.turn + 1) % localGame.players.length;
-    toast(lang === 'ne' ? 'तीन छक्का! पालो गयो' : 'Three 6s! Turn forfeited');
-    renderGame(); resetTurnTimer(); scheduleLocalBot();
-    return;
-  }
-  s.dice = d; s.rolled = true;
-  if (d === 6) playSound('six');
-  const legal = pl.tokens.map((p, i) => (p < 0 ? (d === 6 ? i : -1) : (p < 56 && p + d <= 56 ? i : -1))).filter(i => i >= 0);
-  if (!legal.length){
-    renderGame();
-    setTimeout(() => {
-      if (!localGame) return;
-      s.rolled = false;
-      if (d !== 6) s.turn = (s.turn + 1) % localGame.players.length;
-      else s.dice = 0;
+  setTimeout(() => {
+    animBusy = false;
+    if (!localGame || localGame.state.finished) return;
+    s.streak = d === 6 ? (s.streak || 0) + 1 : 0;
+    if (s.streak >= 3){
+      s.streak = 0; s.dice = 0; s.rolled = false;
+      s.turn = (s.turn + 1) % localGame.players.length;
+      playSound('foul');
+      toast(lang === 'ne' ? 'तीन छक्का! पालो गयो' : 'Three 6s! Turn forfeited');
       renderGame(); resetTurnTimer(); scheduleLocalBot();
-    }, 520);
-    return;
-  }
-  renderGame();
-  // Auto-move if only 1 legal move OR all movable tokens are in base (identical position)
-  const distinctPositions = new Set(legal.map(i => pl.tokens[i]));
-  if (!pl.isBot && (legal.length === 1 || (distinctPositions.size === 1 && pl.tokens[legal[0]] === -1))){
-    setTimeout(() => { if (localGame && !animBusy) localMove(legal[0]); }, 360);
-  } else if (pl.isBot){
-    scheduleLocalBot();
-  }
+      return;
+    }
+    s.dice = d; s.rolled = true;
+    if (d === 6) playSound('six');
+    const legal = pl.tokens.map((p, i) => (p < 0 ? (d === 6 ? i : -1) : (p < 56 && p + d <= 56 ? i : -1))).filter(i => i >= 0);
+    if (!legal.length){
+      playSound('pass'); renderGame();
+      setTimeout(() => {
+        if (!localGame) return;
+        s.rolled = false;
+        if (d !== 6) s.turn = (s.turn + 1) % localGame.players.length;
+        else s.dice = 0;
+        renderGame(); resetTurnTimer(); scheduleLocalBot();
+      }, 420);
+      return;
+    }
+    renderGame();
+    const distinctPositions = new Set(legal.map(i => pl.tokens[i]));
+    if (!pl.isBot && (legal.length === 1 || (distinctPositions.size === 1 && pl.tokens[legal[0]] === -1))){
+      setTimeout(() => { if (localGame && !animBusy) localMove(legal[0]); }, 240);
+    } else if (pl.isBot) scheduleLocalBot();
+  }, 480);
 }
 
 async function localMove(ti){
@@ -1903,10 +2543,12 @@ async function localMove(ti){
   await animateTokenMove(pl.seat, ti, p, next);
   pl.tokens[ti] = next;
 
-  let captured = false;
+  let captured = false, landedSafe = false;
   if (next <= 50){
     const idx = (pl.seat * 13 + next) % 52;
-    if (!SAFE_GLOBAL.has(idx)){
+    if (SAFE_GLOBAL.has(idx)){
+      if (p >= 0) landedSafe = true;
+    } else {
       for (let j = 0; j < localGame.players.length; j++){
         if (j === s.turn) continue;
         const opp = localGame.players[j];
@@ -1920,7 +2562,7 @@ async function localMove(ti){
       }
     }
   }
-  if (next === 56) playSound('home');
+  if (landedSafe && !captured) playSound('safe');
 
   const winNeeded = localGame.mode === 'quick' ? 1 : 4;
   if (pl.tokens.filter(x => x === 56).length >= winNeeded){
@@ -1929,17 +2571,13 @@ async function localMove(ti){
       localStorage.setItem('ludo_local_wins', String(Number(localStorage.getItem('ludo_local_wins') || 0) + 1));
       updateAuthHeader();
     }
-    playSound('win');
-    renderGame();
-    showVictoryModal(localGame);
+    playSound('win'); renderGame(); showVictoryModal(localGame);
     return;
   }
-
+  if (next === 56) playSound('home');
   s.rolled = false; s.dice = 0;
   if (!captured && next !== 56 && d !== 6) s.turn = (s.turn + 1) % localGame.players.length;
-  renderGame();
-  resetTurnTimer();
-  scheduleLocalBot();
+  renderGame(); resetTurnTimer(); scheduleLocalBot();
 }
 
 function pickLocalBotMove(pl, d){
@@ -1976,23 +2614,16 @@ function scheduleLocalBot(){
   botLocalTimer = setTimeout(() => {
     if (!localGame || localGame.state.finished) return;
     if (!s.rolled) localRoll();
-    else {
-      const ti = pickLocalBotMove(cur, s.dice);
-      if (ti >= 0) localMove(ti);
-    }
+    else { const ti = pickLocalBotMove(cur, s.dice); if (ti >= 0) localMove(ti); }
   }, 620);
 }
 
-// Unified Controls
 $('diceBtn').onclick = () => {
   if (!canIControlTurn() || animBusy) return;
   if (gameModeType === 'online'){
     playSound('roll');
-    $('diceBtn').classList.remove('rolling'); void $('diceBtn').offsetWidth; $('diceBtn').classList.add('rolling');
     sendWS({type: 'roll'});
-  } else {
-    localRoll();
-  }
+  } else localRoll();
 };
 function onPickToken(ti){
   if (!canIControlTurn() || animBusy) return;
@@ -2006,22 +2637,20 @@ window.addEventListener('keydown', e => {
     const s = currentState();
     if (!canIControlTurn() || animBusy || !s) return;
     if (!s.rolled) $('diceBtn').click();
-    else {
-      const legal = legalMovesForActive();
-      if (legal.length === 1) onPickToken(legal[0]);
-    }
+    else { const legal = legalMovesForActive(); if (legal.length === 1) onPickToken(legal[0]); }
   }
 });
 
-// ===================== ONLINE WEBSOCKET & WEBRTC VOICE =====================
+// ===================== ONLINE WEBSOCKET & VOICE =====================
 function sendWS(o){ if (socket?.readyState === 1) socket.send(JSON.stringify(o)); }
-
 function connectOnlineRoom(code, create, stake, mode = 'classic'){
-  if (socket) try { socket.close(); } catch {}
+  if (socket){
+    const oldWs = socket;
+    socket = null;
+    setTimeout(() => { try { oldWs.close(); } catch {} }, 120);
+  }
   closeAllPeers();
-  gameModeType = 'online';
-  localGame = null;
-  roomId = code.toUpperCase();
+  roomData = null; gameModeType = 'online'; localGame = null; roomId = code.toUpperCase();
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   const q = new URLSearchParams({
     u: auth.username, name: auth.user.displayName, token: auth.token,
@@ -2029,9 +2658,9 @@ function connectOnlineRoom(code, create, stake, mode = 'classic'){
   });
   socket = new WebSocket(`${proto}://${location.host}/room/${roomId}?` + q);
   socket.onopen = () => {
-    enterArena((lang === 'ne' ? 'अनलाइन कोठा ' : 'Online Room ') + roomId);
-    setStatus('busy');
-    toast((lang === 'ne' ? 'कोठामा जोडियो: ' : 'Joined room: ') + roomId);
+    enterArena();
+    setStatus('online');
+    toast((lang === 'ne' ? 'कोठा तयार: ' : 'In Room: ') + roomId);
   };
   socket.onmessage = async e => {
     let m; try { m = JSON.parse(e.data); } catch { return; }
@@ -2042,28 +2671,43 @@ function connectOnlineRoom(code, create, stake, mode = 'classic'){
     if (m.type === 'webrtc-offer' || m.type === 'webrtc-answer' || m.type === 'webrtc-ice'){ await handleSignal(m); return; }
     if (m.type === 'peer-left'){ if (!m.soft) closePeer(m.username); renderGame(); return; }
     if (m.type === 'state'){
+      const prevLocked = !!roomData?.locked;
       const ev = m.lastEvent;
-      if (ev && (ev.kind === 'move' || ev.kind === 'win') && ev.from !== undefined){
+      if (ev?.kind === 'start') playSound('start');
+      else if (ev && (ev.kind === 'move' || ev.kind === 'win') && ev.from !== undefined){
         await animateTokenMove(ev.seat, ev.token, ev.from, ev.to);
         if (ev.captured) playSound('capture');
-        if (ev.home) playSound('home');
-      } else if (ev && ev.kind === 'roll' && ev.dice === 6){
-        playSound('six');
+        else if (ev.to > 0 && ev.to <= 50 && SAFE_GLOBAL.has((ev.seat * 13 + ev.to) % 52)) playSound('safe');
+        if (ev.home && ev.kind !== 'win') playSound('home');
+      } else if (ev?.kind === 'roll' || ev?.kind === 'pass' || ev?.kind === 'foul'){
+        const myPl = m.room?.players?.find(p => p.username === auth?.username);
+        if (!myPl || ev.seat !== myPl.seat) playSound('roll');
+        animBusy = true;
+        renderDiceFace(ev.dice || m.room?.state?.dice || 6, ev.seat ?? 0, true);
+        await new Promise(r => setTimeout(r, 480));
+        animBusy = false;
+        if (ev.kind === 'roll' && ev.dice === 6) playSound('six');
+        if (ev.kind === 'pass') playSound('pass');
+        if (ev.kind === 'foul') playSound('foul');
       }
       roomData = m.room;
-      renderGame();
-      resetTurnTimer();
+      const nowLocked = !!(roomData?.locked && roomData?.state && !roomData.state.finished);
+      if (nowLocked && !prevLocked) setStatus('busy');
+      else if (!nowLocked && prevLocked) setStatus('online');
+
+      renderGame(); resetTurnTimer();
       if (m.message && m.message !== 'Update') toast(m.message);
-      if (roomData?.state?.finished){
-        playSound('win');
-        showVictoryModal(roomData);
+      if (roomData?.state?.finished && ev?.kind === 'win'){
+        playSound('win'); showVictoryModal(roomData);
         api('/api/user/' + auth.username + '/me').then(j => { if (j.ok){ auth.user = j.user; save(); updateAuthHeader(); } });
+      } else if (roomData?.state?.finished){
+        showVictoryModal(roomData);
       } else if (roomData?.state?.rolled && canIControlTurn()){
         const legal = legalMovesForActive();
         const cur = roomData.players[roomData.state.turn];
         const distinct = new Set(legal.map(i => cur.tokens[i]));
         if (legal.length === 1 || (distinct.size === 1 && cur.tokens[legal[0]] === -1)){
-          setTimeout(() => { if (gameModeType === 'online' && canIControlTurn()) sendWS({type: 'move', token: legal[0]}); }, 340);
+          setTimeout(() => { if (gameModeType === 'online' && canIControlTurn() && !animBusy) sendWS({type: 'move', token: legal[0]}); }, 240);
         }
       }
       currentPlayers().filter(p => p.username !== auth.username && !p.isBot).forEach(p => {
@@ -2072,35 +2716,43 @@ function connectOnlineRoom(code, create, stake, mode = 'classic'){
     }
   };
   socket.onclose = () => {
-    clearInterval(turnTimerHandle);
-    closeAllPeers();
-    socket = null;
+    clearInterval(turnTimerHandle); closeAllPeers(); socket = null;
     if (gameModeType === 'online'){
-      setStatus('online');
+      gameModeType = null; roomData = null; roomId = null; setStatus('online');
+      $('view-game').classList.remove('active');
       switchTab('play');
       toast(lang === 'ne' ? 'कोठाबाट बाहिरिनुभयो' : 'Left room');
     }
   };
 }
 
-$('copyRoomCodeBtn').onclick = async () => {
+function leaveCurrentMatch(targetTab = 'play'){
+  animBusy = false;
+  closeDrawer();
+  clearInterval(turnTimerHandle); clearTimeout(botLocalTimer);
+  const wasOnline = gameModeType === 'online';
+  if (wasOnline){
+    const sRef = socket;
+    gameModeType = null; roomData = null; roomId = null; socket = null;
+    try { if (sRef?.readyState === 1) sRef.send(JSON.stringify({type: 'leave'})); } catch {}
+    setTimeout(() => { try { sRef?.close(); } catch {} }, 120);
+    setStatus('online');
+  } else {
+    localGame = null; roomData = null; gameModeType = null;
+  }
+  $('view-game').classList.remove('active');
+  switchTab(targetTab || 'play');
+}
+$('drawerLeaveBtn').onclick = () => requestExitOrSwitch('play');
+$('btnExitGame').onclick = () => requestExitOrSwitch('play');
+$('drawerCopyCodeBtn').onclick = async () => {
   if (!roomId) return;
   try { await navigator.clipboard.writeText(roomId); toast('Room code copied: ' + roomId); } catch { prompt('Room code', roomId); }
 };
 $('btnStart').onclick = () => sendWS({type: currentState()?.finished ? 'rematch' : 'start'});
 $('btnAddBot').onclick = () => sendWS({type: 'add-bot'});
 $('btnVote').onclick = () => sendWS({type: 'vote-continue'});
-$('btnLeave').onclick = () => {
-  clearInterval(turnTimerHandle);
-  clearTimeout(botLocalTimer);
-  if (gameModeType === 'online'){
-    sendWS({type: 'leave'});
-    try { socket?.close(); } catch {}
-  } else {
-    localGame = null; roomData = null; gameModeType = null;
-    switchTab('play');
-  }
-};
+
 $('chatSend').onclick = () => {
   const txt = $('chatInput').value.trim(); if (!txt) return;
   $('chatInput').value = '';
@@ -2112,7 +2764,6 @@ $('chatSend').onclick = () => {
 };
 $('chatInput').addEventListener('keydown', e => { if (e.key === 'Enter') $('chatSend').click(); });
 
-// Victory Modal
 function showVictoryModal(room){
   const ps = [...(room.players || [])];
   ps.sort((a, b) => {
@@ -2137,10 +2788,7 @@ $('playAgainBtn').onclick = () => {
   if (gameModeType === 'online') sendWS({type: 'rematch'});
   else startLocalMatch();
 };
-$('victoryHomeBtn').onclick = () => {
-  closeModal('victoryModal');
-  $('btnLeave').click();
-};
+$('victoryHomeBtn').onclick = () => { closeModal('victoryModal'); leaveCurrentMatch(); };
 
 // WebRTC Voice Helpers
 $('btnSpeaker').onclick = () => {
@@ -2164,8 +2812,7 @@ async function toggleMyMic(){
     await ensureStream();
     localStream.getAudioTracks().forEach(t => t.enabled = micOn);
     sendWS({type: 'mic-state', on: micOn});
-    renderGame();
-    toast(micOn ? 'Mic On' : 'Mic Off');
+    renderGame(); toast(micOn ? 'Mic On' : 'Mic Off');
   } catch { micOn = false; toast('Mic permission denied'); renderGame(); }
 }
 function createPC(target, name){
@@ -2220,6 +2867,7 @@ function closeAllPeers(){ [...peers.keys()].forEach(closePeer); }
 applyLang();
 buildBoard();
 renderDiceFace(6, -1);
+renderFriendsPanel();
 if (auth?.token && auth?.username){
   api('/api/user/' + auth.username + '/me').then(j => {
     if (j.ok){ auth.user = j.user; save(); onSignedIn(); }

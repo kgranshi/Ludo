@@ -1,135 +1,535 @@
 <!doctype html>
-<html lang="en">
+<html lang="ne">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ludo Admin</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>नेपाली लुडो — Admin Control Panel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Mukta:wght@400;600;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
-body{font-family:system-ui;background:#0b1220;color:#eef2ff;margin:0;padding:16px;max-width:720px;margin-inline:auto}
-input,textarea,select,button{width:100%;padding:10px;margin:6px 0;border-radius:8px;border:1px solid #2a3b5c;background:#152038;color:#fff}
-button{background:#ffd166;color:#111;font-weight:800;border:0;cursor:pointer}
-.card{background:#152038;border:1px solid #2a3b5c;border-radius:12px;padding:12px;margin:10px 0}
-h1{font-size:20px}h2{font-size:15px;margin-top:18px}
-.msg{font-size:12px;color:#8fa0c4;white-space:pre-wrap}
+:root{
+  --bg:#0b1326;--surface:#142038;--surface-2:#1c2b4a;
+  --line:rgba(255,255,255,0.10);--line-strong:rgba(255,255,255,0.20);
+  --txt:#f8fafc;--muted:#94a3b8;--gold:#e5a93c;--crimson:#c81e3a;--emerald:#10b981;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;min-height:100dvh;background:radial-gradient(ellipse 90% 50% at 50% 0%,#1d2e54 0%,#0b1326 68%);
+  color:var(--txt);font-family:'Mukta',system-ui,sans-serif;line-height:1.45;
+}
+h1,h2,h3,.font-display{font-family:'Outfit','Mukta',sans-serif;margin:0}
+.num{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+.topbar{
+  position:sticky;top:0;z-index:30;background:rgba(11,19,38,0.94);backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);padding:10px 16px;
+}
+.topbar-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:800}
+.brand img{width:28px;height:28px;border-radius:8px;object-fit:cover;border:1px solid rgba(229,169,60,0.5)}
+.nav{display:flex;gap:6px;flex-wrap:wrap}
+.nav button{
+  background:transparent;border:1px solid transparent;color:var(--muted);
+  padding:7px 12px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;
+}
+.nav button.active{background:rgba(229,169,60,0.16);color:var(--gold);border-color:rgba(229,169,60,0.35)}
+main{max-width:1200px;margin:0 auto;padding:20px 16px 40px}
+.surface{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
+.grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+@media(max-width:900px){.grid-2,.grid-3,.grid-4{grid-template-columns:1fr}}
+.stat-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px}
+.stat-label{font-size:12px;color:var(--muted)}
+.stat-val{font-size:24px;font-weight:800;color:var(--gold);margin-top:2px}
+.field{margin-bottom:10px}
+.field label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px}
+input,select,textarea{
+  width:100%;padding:9px 11px;border-radius:9px;border:1px solid var(--line);
+  background:#0b1120;color:var(--txt);font-size:14px;font-family:inherit;
+}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:9px 15px;min-height:40px;border-radius:9px;border:0;font-weight:700;font-size:13px;cursor:pointer;
+}
+.btn-primary{background:var(--gold);color:#171206}
+.btn-secondary{background:var(--surface-2);color:var(--txt);border:1px solid var(--line)}
+.btn-danger{background:#7f1d1d;color:#fee2e2}
+.btn-sm{min-height:32px;padding:5px 10px;font-size:12px}
+.row{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:10px 12px;background:#0b1120;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;
+}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
+.dot.online{background:#10b981}.dot.busy{background:#f59e0b}.dot.offline{background:#64748b}
+.panel{display:none}.panel.active{display:block}
+.sub{color:var(--muted);font-size:12px;margin:2px 0 0}
+.proof-img{max-width:220px;max-height:160px;border-radius:8px;border:1px solid var(--line);margin-top:8px;display:block}
+.toast{
+  position:fixed;left:50%;bottom:20px;transform:translateX(-50%);
+  background:#1e293b;border:1px solid var(--gold);color:#fff;padding:10px 16px;border-radius:10px;
+  font-size:13px;font-weight:700;z-index:100;display:none;max-width:90vw;
+}
 </style>
 </head>
 <body>
-<h1>G Ludo — Admin Panel</h1>
-<section id="loginCard" class="card">
-  <h2>Admin login</h2>
-  <label for="secret">Admin secret</label>
-  <input id="secret" type="password" autocomplete="current-password" placeholder="Cloudflare ADMIN_SECRET">
-  <button id="loginBtn" type="button">Unlock Admin Panel</button>
-  <p id="loginMsg" class="msg" role="status">Admin controls are locked until server verification succeeds.</p>
-</section>
-<div id="adminApp" hidden>
-<label>Session</label>
-<button id="saveSecretBtn" type="button">Keep unlocked for this tab</button>
-<button id="lockBtn" type="button" style="background:#8b3044;color:#fff">Lock Admin Panel</button>
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <img src="/assets/nepali_ludo_crest.jpg" alt="" onerror="this.style.display='none'">
+      <span>नेपाली लुडो — Admin Panel</span>
+    </div>
+    <nav class="nav" id="admNav" style="display:none">
+      <button type="button" class="active" data-panel="users">खेलाडी (Users)</button>
+      <button type="button" data-panel="market">बजार बिक्री (Market Seller)</button>
+      <button type="button" data-panel="shop">पसल र नियम (Shop &amp; Rules)</button>
+      <button type="button" data-panel="proofs">भुक्तानी र सन्देश (Proofs)</button>
+    </nav>
+    <div style="display:flex;gap:8px;align-items:center">
+      <a href="/" class="btn btn-secondary btn-sm" style="text-decoration:none">Public App ↗</a>
+      <button id="lockBtn" class="btn btn-danger btn-sm" type="button" style="display:none">Lock</button>
+    </div>
+  </div>
+</header>
 
-<h2>Payment proofs</h2>
-<button onclick="loadProofs()">Refresh proofs</button>
-<div id="proofs"></div>
+<main>
+  <!-- LOGIN GATE -->
+  <section id="loginCard" class="surface" style="max-width:440px;margin:40px auto">
+    <h1 style="font-size:20px;margin-bottom:6px">Admin Access</h1>
+    <p class="sub" style="margin-bottom:14px">Enter your server <code class="num">ADMIN_SECRET</code> (24+ chars) to manage players, marketplace listings, shop prices, and payment proofs.</p>
+    <div class="field">
+      <label for="secret">Admin Secret</label>
+      <input id="secret" type="password" autocomplete="current-password" placeholder="Minimum 24 characters">
+    </div>
+    <button id="loginBtn" class="btn btn-primary" type="button" style="width:100%">Unlock Admin Panel</button>
+    <p id="loginMsg" class="sub" style="margin-top:10px" role="status"></p>
+  </section>
 
-<h2>Inbox</h2>
-<button onclick="loadInbox()">Refresh inbox</button>
-<div id="inbox"></div>
+  <!-- ADMIN WORKSPACE -->
+  <div id="adminApp" style="display:none">
+    <div class="grid-4">
+      <div class="stat-card"><div class="stat-label">कुल खेलाडी (Total Users)</div><div class="stat-val num" id="stTotalUsers">0</div></div>
+      <div class="stat-card"><div class="stat-label">अहिले अनलाइन (Online Now)</div><div class="stat-val num" id="stOnlineUsers" style="color:var(--emerald)">0</div></div>
+      <div class="stat-card"><div class="stat-label">बजार सामान (Market Items)</div><div class="stat-val num" id="stMarketCount">0</div></div>
+      <div class="stat-card"><div class="stat-label">पेन्डिङ भुक्तानी (Pending Proofs)</div><div class="stat-val num" id="stPendingProofs">0</div></div>
+    </div>
 
-<h2>Grant Voice</h2>
-<input id="gUser" placeholder="username">
-<input id="gDays" type="number" value="30" placeholder="days">
-<button onclick="grantVoice()">Grant voice days</button>
+    <!-- PANEL 1: USERS & ECONOMY -->
+    <section id="panel-users" class="panel active">
+      <div class="grid-2">
+        <div class="surface">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">
+            <div>
+              <h2 style="font-size:17px">खेलाडी सूची (Registered Players)</h2>
+              <p class="sub">खोज्नुहोस् वा खेलाडीमा थिचेर व्यवस्थापन गर्नुहोस्</p>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="refreshUsersBtn" type="button">Refresh</button>
+          </div>
+          <div class="field"><input id="userFilterInput" placeholder="Filter by username or name..."></div>
+          <div id="usersDirectoryList" style="max-height:460px;overflow-y:auto"></div>
+        </div>
 
-<h2>Ban / Unban</h2>
-<input id="bUser" placeholder="username">
-<button onclick="ban(true)">Ban</button>
-<button onclick="ban(false)">Unban</button>
+        <div class="surface">
+          <h2 style="font-size:17px;margin-bottom:4px">खेलाडी खाता समायोजन (Manage Player)</h2>
+          <p class="sub" style="margin-bottom:12px">Username लेख्नुहोस् वा बायाँ सूचीबाट छान्नुहोस्</p>
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <input id="mgrUserInput" placeholder="username (e.g. sagar)">
+            <button class="btn btn-secondary btn-sm" id="loadUserBtn" type="button">Load</button>
+          </div>
+          <div id="mgrUserSummary" class="surface" style="background:#0b1120;padding:12px;margin-bottom:12px">
+            <span class="sub">Select a player to view balance, level, voice status, and owned items.</span>
+          </div>
 
-<h2>Referral / Daily rewards (example JSON)</h2>
-<p class="msg">Paste into config box below and Save:</p>
-<pre class="msg">{
-  "dailyLoginFunTokens": 50,
-  "referralRewardFunTokens": 100,
-  "referralRewardVoiceMs": 864000000,
-  "paymentEnabled": false,
-  "paymentMethods": [{"id":"esewa","label":"eSewa","detail":"98xxxxxxxx","qrUrl":""}]
-}</pre>
-<h2>Shop config (JSON merge)</h2>
-<textarea id="cfg" rows="10" placeholder='{"paymentMethods":[{"id":"esewa","label":"eSewa","detail":"98..."}]}'></textarea>
-<button onclick="saveCfg()">Save config</button>
-<pre class="msg" id="out"></pre>
-</div>
+          <div class="grid-2">
+            <div class="field"><label>Add / Grant Fun Tokens</label><input id="adjFun" type="number" value="0"></div>
+            <div class="field"><label>Add / Grant Coins</label><input id="adjCoins" type="number" value="0"></div>
+            <div class="field"><label>Set Level (optional)</label><input id="adjLevel" type="number" placeholder="keep current" min="1"></div>
+            <div class="field"><label>Grant Voice (Days)</label><input id="adjVoiceDays" type="number" value="0" min="0"></div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+            <button class="btn btn-primary" id="applyAdjustBtn" type="button">Apply Balance &amp; Voice</button>
+            <button class="btn btn-danger btn-sm" id="banBtn" type="button">Ban</button>
+            <button class="btn btn-secondary btn-sm" id="unbanBtn" type="button">Unban</button>
+          </div>
+
+          <h3 style="font-size:14px;margin-bottom:8px">Grant Cosmetic Item Directly</h3>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <select id="grantType" style="flex:1">
+              <option value="skin">Skin</option>
+              <option value="avatar">Avatar</option>
+              <option value="mic">Mic</option>
+              <option value="room">Room Decor</option>
+            </select>
+            <input id="grantId" placeholder="item id (e.g. gold, diyo)" style="flex:1">
+            <button class="btn btn-secondary btn-sm" id="grantItemBtn" type="button">Grant Item</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 2: ADMIN MARKETPLACE SELLER -->
+    <section id="panel-market" class="panel">
+      <div class="grid-2">
+        <div class="surface">
+          <h2 style="font-size:17px;margin-bottom:4px">बजारमा सामान राख्नुहोस् (Admin Sell to Players)</h2>
+          <p class="sub" style="margin-bottom:12px">बजारमा केबल एडमिनले मात्र सामान बेच्न सक्नुहुन्छ; प्रयोगकर्ताले किन्न मात्र सक्छन्।</p>
+          <div class="field">
+            <label>Quick Preset (or customize below)</label>
+            <select id="mktPreset">
+              <option value="">-- Choose Shop Item Preset --</option>
+            </select>
+          </div>
+          <div class="grid-2">
+            <div class="field"><label>Item Type</label>
+              <select id="mktType">
+                <option value="skin">Board Skin</option>
+                <option value="avatar">Avatar</option>
+                <option value="mic">Mic Skin</option>
+                <option value="room">Room Decor</option>
+              </select>
+            </div>
+            <div class="field"><label>Item ID</label><input id="mktItemId" placeholder="gold"></div>
+            <div class="field"><label>Display Title</label><input id="mktLabel" placeholder="Dhaka Gold Board"></div>
+            <div class="field"><label>Emoji Icon</label><input id="mktEmoji" placeholder="👑" value="🎁"></div>
+            <div class="field"><label>Price (Fun Tokens)</label><input id="mktFun" type="number" value="150" min="0"></div>
+            <div class="field"><label>Price (Coins)</label><input id="mktCoins" type="number" value="0" min="0"></div>
+          </div>
+          <button class="btn btn-primary" id="mktAddBtn" type="button" style="width:100%">बजारमा बिक्रीको लागि राख्नुहोस् (Publish Listing)</button>
+        </div>
+
+        <div class="surface">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div>
+              <h2 style="font-size:17px">सक्रिय बजार सामान (Active Listings)</h2>
+              <p class="sub">प्रयोगकर्ताको बजार ट्याबमा देखिने सामानहरू</p>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="refreshMktBtn" type="button">Refresh</button>
+          </div>
+          <div id="admMarketList"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PANEL 3: SHOP & ECONOMY CONFIG -->
+    <section id="panel-shop" class="panel">
+      <div class="surface">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+          <div>
+            <h2 style="font-size:17px">पसल, इनाम र भुक्तानी सेटिङ (Shop &amp; Economy)</h2>
+            <p class="sub">यहाँबाट गरिएको परिवर्तन तुरुन्तै पब्लिक एपको Shop र Lobby मा लागू हुन्छ।</p>
+          </div>
+          <button class="btn btn-primary" id="saveVisualCfgBtn" type="button">Save All Settings</button>
+        </div>
+        <div class="grid-3">
+          <div class="field"><label>Starter Fun Tokens (New User)</label><input id="cfgStarterFun" type="number"></div>
+          <div class="field"><label>Daily Login Fun Tokens</label><input id="cfgDailyFun" type="number"></div>
+          <div class="field"><label>Referral Fun Reward</label><input id="cfgRefFun" type="number"></div>
+          <div class="field"><label>Referral Voice Reward (Days)</label><input id="cfgRefDays" type="number"></div>
+          <div class="field"><label>Match Stakes (comma-separated)</label><input id="cfgStakes" placeholder="0,10,20,50,100"></div>
+          <div class="field"><label>Real-Money Voice Payments</label>
+            <select id="cfgPayEnabled"><option value="false">Disabled (Coming Soon)</option><option value="true">Enabled</option></select>
+          </div>
+          <div class="field"><label>eSewa ID / Instruction</label><input id="cfgEsewa" placeholder="98xxxxxxxx"></div>
+          <div class="field"><label>Khalti ID / Instruction</label><input id="cfgKhalti" placeholder="98xxxxxxxx"></div>
+        </div>
+        <div class="field" style="margin-top:12px">
+          <label>Advanced Full Config JSON (Skins, Avatars, Mics, Room Items, Voice Packages)</label>
+          <textarea id="cfgJson" rows="10" class="num" style="font-size:12px"></textarea>
+        </div>
+        <button class="btn btn-secondary" id="saveRawCfgBtn" type="button">Save Raw JSON Config</button>
+      </div>
+    </section>
+
+    <!-- PANEL 4: PROOFS & INBOX -->
+    <section id="panel-proofs" class="panel">
+      <div class="grid-2">
+        <div class="surface">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <h2 style="font-size:17px">भुक्तानी प्रमाण (Payment Proofs)</h2>
+            <button class="btn btn-secondary btn-sm" id="refreshProofsBtn" type="button">Refresh</button>
+          </div>
+          <div id="proofsList"></div>
+        </div>
+
+        <div class="surface">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <h2 style="font-size:17px">Admin Inbox</h2>
+            <button class="btn btn-secondary btn-sm" id="refreshInboxBtn" type="button">Refresh</button>
+          </div>
+          <div id="inboxList"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
 
 <script>
-const secret = document.getElementById('secret');
-const loginCard = document.getElementById('loginCard');
-const adminApp = document.getElementById('adminApp');
-const loginMsg = document.getElementById('loginMsg');
-secret.value = sessionStorage.getItem('adm') || '';
-const out = document.getElementById('out');
-function toast(m){ out.textContent = m; }
-async function api(path, opts={}){
-  const headers = {'Content-Type':'application/json', ...(opts.headers||{}), 'X-Admin-Secret':secret.value};
+const $ = id => document.getElementById(id);
+let adminSecret = sessionStorage.getItem('adm') || '';
+let cachedConfig = null;
+let cachedUsers = [];
+
+function toast(m){
+  const t = $('toast'); t.textContent = m; t.style.display = 'block';
+  clearTimeout(t._t); t._t = setTimeout(() => t.style.display = 'none', 3200);
+}
+function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+async function api(path, opts = {}){
+  const headers = {'Content-Type':'application/json', ...(opts.headers||{}), 'X-Admin-Secret': adminSecret};
   const r = await fetch(path, {...opts, headers, cache:'no-store'});
-  const j = await r.json().catch(()=>({ok:false,error:'Invalid server response'}));
-  if(!r.ok || j.ok === false) toast(j.error || `Request failed (${r.status})`);
+  const j = await r.json().catch(() => ({ok:false, error:'Invalid response'}));
+  if (!r.ok || j.ok === false) toast(j.error || `Error (${r.status})`);
   return j;
 }
-function el(tag, text, cls){const n=document.createElement(tag);if(text!==undefined)n.textContent=String(text);if(cls)n.className=cls;return n;}
-function saveSecret(){sessionStorage.setItem('adm',secret.value);toast('Secret kept in this tab session.');}
+
+document.querySelectorAll('#admNav button').forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll('#admNav button').forEach(x => x.classList.toggle('active', x === b));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    $('panel-' + b.dataset.panel).classList.add('active');
+  };
+});
+
 async function unlock(){
-  const value=secret.value.trim();
-  if(value.length<24){loginMsg.textContent='Invalid secret. Set ADMIN_SECRET in Cloudflare (minimum 24 characters).';return;}
-  loginMsg.textContent='Checking credentials…';
-  const previous=secret.value; secret.value=value;
-  const r=await fetch('/api/lobby/admin-inbox',{headers:{'X-Admin-Secret':value},cache:'no-store'});
-  const j=await r.json().catch(()=>({ok:false}));
-  if(!r.ok || !j.ok){secret.value=previous;loginMsg.textContent='Login failed: secret is incorrect or ADMIN_SECRET is not configured.';return;}
-  sessionStorage.setItem('adm',value);
-  adminApp.hidden=false; loginCard.hidden=true;
-  toast('Admin access verified.');
+  const val = ($('secret').value || adminSecret).trim();
+  if (val.length < 24){
+    $('loginMsg').textContent = 'Secret must be at least 24 characters.';
+    return;
+  }
+  $('loginMsg').textContent = 'Verifying...';
+  const r = await fetch('/api/lobby/admin-overview', { headers: {'X-Admin-Secret': val}, cache:'no-store' });
+  const j = await r.json().catch(() => ({ok:false}));
+  if (!r.ok || !j.ok){
+    $('loginMsg').textContent = 'Invalid ADMIN_SECRET.';
+    return;
+  }
+  adminSecret = val;
+  sessionStorage.setItem('adm', val);
+  $('loginCard').style.display = 'none';
+  $('adminApp').style.display = 'block';
+  $('admNav').style.display = 'flex';
+  $('lockBtn').style.display = 'inline-flex';
+  loadAll();
 }
-function lockAdmin(){sessionStorage.removeItem('adm');secret.value='';adminApp.hidden=true;loginCard.hidden=false;loginMsg.textContent='Admin panel locked.';}
-async function loadProofs(){
-  const j=await api('/api/shop/proofs');
-  const box=document.getElementById('proofs');box.replaceChildren();
-  (j.proofs||[]).forEach(p=>{
-    const d=el('div',undefined,'card');
-    d.append(el('b',p.username),document.createTextNode(` ${p.packageType}/${p.packageId} Rs.${p.amount} · ${p.status}`),el('p',p.note||''));
-    if(p.status==='pending'){
-      const approve=el('button','Approve');
-      approve.onclick=async()=>{const r=await api('/api/shop/proof-action',{method:'POST',body:JSON.stringify({secret:secret.value,proofId:p.id,action:'approve'})});if(r.ok)loadProofs();};
-      const reject=el('button','Reject');reject.style.background='#8b3044';reject.style.color='#fff';
-      reject.onclick=async()=>{const r=await api('/api/shop/proof-action',{method:'POST',body:JSON.stringify({secret:secret.value,proofId:p.id,action:'reject'})});if(r.ok)loadProofs();};
-      d.append(approve,reject);
-    }
-    box.append(d);
+
+$('loginBtn').onclick = unlock;
+$('secret').addEventListener('keydown', e => { if (e.key === 'Enter') unlock(); });
+$('lockBtn').onclick = () => {
+  sessionStorage.removeItem('adm'); adminSecret = ''; $('secret').value = '';
+  $('adminApp').style.display = 'none'; $('admNav').style.display = 'none';
+  $('lockBtn').style.display = 'none'; $('loginCard').style.display = 'block';
+  $('loginMsg').textContent = 'Locked.';
+};
+
+async function loadAll(){
+  await Promise.all([loadOverview(), loadConfig(), loadAdminMarket(), loadProofs(), loadInbox()]);
+}
+
+async function loadOverview(){
+  const j = await api('/api/lobby/admin-overview');
+  if (!j.ok) return;
+  cachedUsers = j.users || [];
+  $('stTotalUsers').textContent = j.totalUsers || 0;
+  $('stOnlineUsers').textContent = j.onlineCount || 0;
+  renderUsersList();
+}
+
+function renderUsersList(){
+  const q = $('userFilterInput').value.trim().toLowerCase();
+  const box = $('usersDirectoryList'); box.innerHTML = '';
+  const list = cachedUsers.filter(u => !q || u.username.includes(q) || String(u.displayName||'').toLowerCase().includes(q));
+  list.forEach(u => {
+    const r = document.createElement('div'); r.className = 'row';
+    r.innerHTML = `<div style="min-width:0"><div style="font-weight:700"><span class="dot ${u.status}"></span>${esc(u.displayName)} <span class="sub">@${esc(u.username)}</span></div><div class="sub num">Lv${u.level||1} · ${u.wins||0} Wins · ${u.status}${u.banned?' · BANNED':''}</div></div>`;
+    const b = document.createElement('button'); b.className = 'btn btn-secondary btn-sm'; b.textContent = 'Manage';
+    b.onclick = () => { $('mgrUserInput').value = u.username; loadSingleUser(u.username); };
+    r.appendChild(b); box.appendChild(r);
   });
-  if(!box.children.length)box.append(el('p','No payment proofs.','msg'));
+  if (!box.children.length) box.innerHTML = '<p class="sub">No registered users found yet.</p>';
 }
+$('userFilterInput').oninput = renderUsersList;
+$('refreshUsersBtn').onclick = loadOverview;
+
+async function loadSingleUser(uname){
+  const u = (uname || $('mgrUserInput').value).trim().toLowerCase();
+  if (!u) return;
+  const j = await api('/api/user/' + encodeURIComponent(u) + '/admin-user');
+  if (!j.ok) return;
+  const usr = j.user;
+  $('mgrUserSummary').innerHTML = `
+    <div style="font-weight:800;font-size:15px">${esc(usr.displayName)} <span class="sub">@${esc(usr.username)}</span> ${usr.banned ? '<span style="color:#f87171">[BANNED]</span>' : ''}</div>
+    <div class="sub num" style="margin-top:4px">Fun: <b>${usr.funTokens||0}</b> (+${usr.dailyFunTokens||0} daily) · Coins: <b>${usr.coins||0}</b> · Lv <b>${usr.level||1}</b> · Wins: <b>${usr.wins||0}</b></div>
+    <div class="sub num" style="margin-top:4px">Voice: <b>${usr.voiceActive ? 'Active' : 'Off'}</b> · Friends: <b>${(usr.friends||[]).length}</b> · Skins: <b>${(usr.ownedSkins||[]).join(', ')}</b></div>
+  `;
+}
+$('loadUserBtn').onclick = () => loadSingleUser();
+
+$('applyAdjustBtn').onclick = async () => {
+  const u = $('mgrUserInput').value.trim().toLowerCase();
+  if (!u) return toast('Enter username first');
+  const body = {
+    secret: adminSecret,
+    addFun: Number($('adjFun').value) || 0,
+    addCoins: Number($('adjCoins').value) || 0,
+    voiceDays: Number($('adjVoiceDays').value) || 0
+  };
+  const lv = Number($('adjLevel').value);
+  if (lv >= 1) body.setLevel = lv;
+  const j = await api('/api/user/' + encodeURIComponent(u) + '/admin-adjust', { method:'POST', body:JSON.stringify(body) });
+  if (j.ok){ toast('Player updated!'); $('adjFun').value = 0; $('adjCoins').value = 0; $('adjVoiceDays').value = 0; loadSingleUser(u); loadOverview(); }
+};
+$('grantItemBtn').onclick = async () => {
+  const u = $('mgrUserInput').value.trim().toLowerCase();
+  const grantType = $('grantType').value, grantId = $('grantId').value.trim();
+  if (!u || !grantId) return toast('Username and item ID required');
+  const j = await api('/api/user/' + encodeURIComponent(u) + '/admin-adjust', { method:'POST', body:JSON.stringify({ secret: adminSecret, grantType, grantId }) });
+  if (j.ok){ toast('Item granted!'); loadSingleUser(u); }
+};
+$('banBtn').onclick = async () => {
+  const u = $('mgrUserInput').value.trim().toLowerCase(); if (!u) return;
+  const j = await api('/api/user/' + encodeURIComponent(u) + '/admin-ban', { method:'POST', body:JSON.stringify({ secret: adminSecret, banned: true }) });
+  if (j.ok){ toast('User banned'); loadSingleUser(u); loadOverview(); }
+};
+$('unbanBtn').onclick = async () => {
+  const u = $('mgrUserInput').value.trim().toLowerCase(); if (!u) return;
+  const j = await api('/api/user/' + encodeURIComponent(u) + '/admin-ban', { method:'POST', body:JSON.stringify({ secret: adminSecret, banned: false }) });
+  if (j.ok){ toast('User unbanned'); loadSingleUser(u); loadOverview(); }
+};
+
+// MARKETPLACE SELLER (ADMIN ONLY)
+async function loadAdminMarket(){
+  const j = await api('/api/shop/market-list');
+  const box = $('admMarketList'); box.innerHTML = '';
+  const list = j.listings || [];
+  $('stMarketCount').textContent = list.length;
+  list.forEach(L => {
+    const r = document.createElement('div'); r.className = 'row';
+    r.innerHTML = `<div><b>${esc(L.emoji||'🎁')} ${esc(L.label||L.itemId)}</b><div class="sub num">${L.itemType}:${esc(L.itemId)} · ${L.priceFun||0} Fun · ${L.priceCoins||0} Coins</div></div>`;
+    const del = document.createElement('button'); del.className = 'btn btn-danger btn-sm'; del.textContent = 'Remove';
+    del.onclick = async () => {
+      const res = await api('/api/shop/market-remove', { method:'POST', body:JSON.stringify({ secret: adminSecret, listingId: L.id }) });
+      if (res.ok){ toast('Listing removed'); loadAdminMarket(); }
+    };
+    r.appendChild(del); box.appendChild(r);
+  });
+  if (!list.length) box.innerHTML = '<p class="sub">No active market listings. Add items from the left panel!</p>';
+}
+$('refreshMktBtn').onclick = loadAdminMarket;
+
+$('mktPreset').onchange = () => {
+  const val = $('mktPreset').value; if (!val) return;
+  const [type, id, label, emoji, coins] = val.split('|');
+  $('mktType').value = type; $('mktItemId').value = id; $('mktLabel').value = label; $('mktEmoji').value = emoji || '🎁';
+  $('mktCoins').value = coins || 0; $('mktFun').value = (Number(coins)||10) * 20;
+};
+
+$('mktAddBtn').onclick = async () => {
+  const payload = {
+    secret: adminSecret,
+    itemType: $('mktType').value,
+    itemId: $('mktItemId').value.trim(),
+    label: $('mktLabel').value.trim(),
+    emoji: $('mktEmoji').value.trim() || '🎁',
+    priceFun: Number($('mktFun').value) || 0,
+    priceCoins: Number($('mktCoins').value) || 0
+  };
+  const j = await api('/api/shop/market-add', { method:'POST', body:JSON.stringify(payload) });
+  if (j.ok){ toast('Published to Marketplace!'); loadAdminMarket(); }
+};
+
+// SHOP CONFIG
+async function loadConfig(){
+  const j = await api('/api/shop/get');
+  if (!j.ok || !j.config) return;
+  cachedConfig = j.config;
+  $('cfgStarterFun').value = cachedConfig.starterFunTokens ?? 100;
+  $('cfgDailyFun').value = cachedConfig.dailyLoginFunTokens ?? 50;
+  $('cfgRefFun').value = cachedConfig.referralRewardFunTokens ?? 100;
+  $('cfgRefDays').value = Math.round((cachedConfig.referralRewardVoiceMs ?? 864000000) / 86400000);
+  $('cfgStakes').value = (cachedConfig.stakes || [0,10,20,50,100]).join(',');
+  $('cfgPayEnabled').value = cachedConfig.paymentEnabled ? 'true' : 'false';
+  const esewa = (cachedConfig.paymentMethods || []).find(m => m.id === 'esewa');
+  const khalti = (cachedConfig.paymentMethods || []).find(m => m.id === 'khalti');
+  $('cfgEsewa').value = esewa?.detail || '';
+  $('cfgKhalti').value = khalti?.detail || '';
+  $('cfgJson').value = JSON.stringify(cachedConfig, null, 2);
+
+  // Populate marketplace presets from shop items
+  const ps = $('mktPreset');
+  ps.innerHTML = '<option value="">-- Choose Shop Item Preset --</option>';
+  (cachedConfig.skins || []).forEach(s => { if (s.id !== 'default') ps.innerHTML += `<option value="skin|${s.id}|${esc(s.label)}|🎨|${s.priceCoins||0}">Skin: ${esc(s.label)}</option>`; });
+  (cachedConfig.avatars || []).forEach(s => { if (s.id !== 'default') ps.innerHTML += `<option value="avatar|${s.id}|${esc(s.label)}|👑|${s.priceCoins||0}">Avatar: ${esc(s.label)}</option>`; });
+  (cachedConfig.mics || []).forEach(s => { if (s.id !== 'mic_default') ps.innerHTML += `<option value="mic|${s.id}|${esc(s.label)}|${s.emoji||'🎤'}|${s.priceCoins||0}">Mic: ${esc(s.label)}</option>`; });
+  (cachedConfig.roomItems || []).forEach(s => { ps.innerHTML += `<option value="room|${s.id}|${esc(s.label)}|${s.emoji||'🪔'}|${s.priceCoins||0}">Decor: ${esc(s.label)}</option>`; });
+}
+
+$('saveVisualCfgBtn').onclick = async () => {
+  const stakes = $('cfgStakes').value.split(',').map(x => Number(x.trim())).filter(n => Number.isFinite(n) && n >= 0);
+  const config = {
+    starterFunTokens: Number($('cfgStarterFun').value) || 100,
+    dailyLoginFunTokens: Number($('cfgDailyFun').value) || 50,
+    referralRewardFunTokens: Number($('cfgRefFun').value) || 100,
+    referralRewardVoiceMs: (Number($('cfgRefDays').value) || 0) * 86400000,
+    stakes: stakes.length ? stakes : [0,10,20,50,100],
+    paymentEnabled: $('cfgPayEnabled').value === 'true',
+    paymentMethods: [
+      { id:'esewa', label:'eSewa', detail: $('cfgEsewa').value.trim(), qrUrl:'' },
+      { id:'khalti', label:'Khalti', detail: $('cfgKhalti').value.trim(), qrUrl:'' }
+    ]
+  };
+  const j = await api('/api/shop/set', { method:'POST', body:JSON.stringify({ secret: adminSecret, config }) });
+  if (j.ok){ toast('Settings saved!'); loadConfig(); }
+};
+$('saveRawCfgBtn').onclick = async () => {
+  let config; try { config = JSON.parse($('cfgJson').value); } catch { return toast('Invalid JSON'); }
+  const j = await api('/api/shop/set', { method:'POST', body:JSON.stringify({ secret: adminSecret, config }) });
+  if (j.ok){ toast('Full JSON config saved!'); loadConfig(); }
+};
+
+// PROOFS & INBOX
+async function loadProofs(){
+  const j = await api('/api/shop/proofs');
+  const box = $('proofsList'); box.innerHTML = '';
+  const list = j.proofs || [];
+  $('stPendingProofs').textContent = list.filter(x => x.status === 'pending').length;
+  list.forEach(p => {
+    const d = document.createElement('div'); d.className = 'surface'; d.style.background = '#0b1120'; d.style.padding = '12px';
+    d.innerHTML = `<div><b>@${esc(p.username)}</b> · ${esc(p.packageType)}/${esc(p.packageId)} · <span class="num">Rs.${p.amount}</span> · <b>${esc(p.status)}</b></div><div class="sub">${esc(p.note||'')}</div>`;
+    if (p.proofData && p.proofMime && p.proofMime.startsWith('image/')){
+      const img = document.createElement('img'); img.className = 'proof-img';
+      img.src = `data:${p.proofMime};base64,${p.proofData}`;
+      d.appendChild(img);
+    }
+    if (p.status === 'pending'){
+      const row = document.createElement('div'); row.style.display = 'flex'; row.style.gap = '8px'; row.style.marginTop = '10px';
+      const app = document.createElement('button'); app.className = 'btn btn-primary btn-sm'; app.textContent = 'Approve';
+      app.onclick = async () => { const r = await api('/api/shop/proof-action', {method:'POST', body:JSON.stringify({secret:adminSecret, proofId:p.id, action:'approve'})}); if (r.ok) loadProofs(); };
+      const rej = document.createElement('button'); rej.className = 'btn btn-danger btn-sm'; rej.textContent = 'Reject';
+      rej.onclick = async () => { const r = await api('/api/shop/proof-action', {method:'POST', body:JSON.stringify({secret:adminSecret, proofId:p.id, action:'reject'})}); if (r.ok) loadProofs(); };
+      row.append(app, rej); d.appendChild(row);
+    }
+    box.appendChild(d);
+  });
+  if (!list.length) box.innerHTML = '<p class="sub">No payment proofs submitted yet.</p>';
+}
+$('refreshProofsBtn').onclick = loadProofs;
+
 async function loadInbox(){
-  const j=await api('/api/lobby/admin-inbox');
-  const box=document.getElementById('inbox');box.replaceChildren();
-  (j.messages||[]).forEach(m=>{const d=el('div',undefined,'card');d.append(el('b',m.from),document.createTextNode(` · ${m.type}`),el('p',m.text));box.append(d);});
-  if(!box.children.length)box.append(el('p','Inbox is empty.','msg'));
+  const j = await api('/api/lobby/admin-inbox');
+  const box = $('inboxList'); box.innerHTML = '';
+  (j.messages || []).forEach(m => {
+    const d = document.createElement('div'); d.className = 'row';
+    d.innerHTML = `<div><b>${esc(m.from)}</b> <span class="sub">· ${esc(m.type)}</span><div class="sub">${esc(m.text)}</div></div>`;
+    box.appendChild(d);
+  });
+  if (!box.children.length) box.innerHTML = '<p class="sub">Inbox is empty.</p>';
 }
-async function grantVoice(){
-  const u=document.getElementById('gUser').value.trim().toLowerCase();
-  const days=Number(document.getElementById('gDays').value)||30;
-  const j=await api('/api/user/'+encodeURIComponent(u)+'/admin-grant-voice',{method:'POST',body:JSON.stringify({secret:secret.value,days})});toast(JSON.stringify(j,null,2));
-}
-async function ban(v){
-  const u=document.getElementById('bUser').value.trim().toLowerCase();
-  const j=await api('/api/user/'+encodeURIComponent(u)+'/admin-ban',{method:'POST',body:JSON.stringify({secret:secret.value,banned:v})});toast(JSON.stringify(j,null,2));
-}
-async function saveCfg(){
-  let config={};try{config=JSON.parse(document.getElementById('cfg').value);}catch(e){toast('Invalid JSON');return;}
-  const j=await api('/api/shop/set',{method:'POST',body:JSON.stringify({secret:secret.value,config})});toast(JSON.stringify(j,null,2));
-}
-document.getElementById('saveSecretBtn').addEventListener('click',saveSecret);
-document.getElementById('loginBtn').addEventListener('click',unlock);
-document.getElementById('lockBtn').addEventListener('click',lockAdmin);
-secret.addEventListener('keydown',e=>{if(e.key==='Enter')unlock();});
-if(secret.value) unlock();
+$('refreshInboxBtn').onclick = loadInbox;
+
+if (adminSecret) unlock();
 </script>
 </body>
 </html>

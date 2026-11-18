@@ -49,6 +49,8 @@ function publicUser(u) {
     ownedAvatars: u.ownedAvatars || ['default'],
     roomDecor: u.roomDecor || [],
     roomDecorEquipped: u.roomDecorEquipped || [],
+    friends: u.friends || [],
+    friendRequests: u.friendRequests || [],
     referralCode: u.referralCode,
     banned: !!u.banned,
     rankScore: (u.level || 1) * 1000 + (u.wins || 0)
@@ -79,8 +81,12 @@ export class ShopConfig {
       skins: [
         { id: 'default', label: 'Classic Durbar (परम्परागत)', priceCoins: 0, priceFun: 0, minLevel: 1 },
         { id: 'gold', label: 'Dhaka Gold (ढाका र सुन)', priceCoins: 20, priceFun: 0, minLevel: 2 },
-        { id: 'nepal', label: 'Nepal Heritage (नेपाल विशेष)', priceCoins: 30, priceFun: 0, minLevel: 3 },
-        { id: 'neon', label: 'Tihar Glow (तिहार झिलिमिली)', priceCoins: 50, priceFun: 0, minLevel: 5 }
+        { id: 'nepal', label: 'Nepal Flag (नेपाल झण्डा)', priceCoins: 30, priceFun: 0, minLevel: 3 },
+        { id: 'neon', label: 'Tihar Glow (तिहार झिलिमिली)', priceCoins: 50, priceFun: 0, minLevel: 5 },
+        { id: 'himal', label: 'Himal Sagarmatha (हिमाल)', priceCoins: 25, priceFun: 0, minLevel: 2 },
+        { id: 'pahad', label: 'Pahad Laligurans (पहाड)', priceCoins: 25, priceFun: 0, minLevel: 2 },
+        { id: 'terai', label: 'Terai Lumbini (तराई)', priceCoins: 30, priceFun: 0, minLevel: 3 },
+        { id: 'durbar', label: 'Malla Durbar (दरबार)', priceCoins: 45, priceFun: 0, minLevel: 4 }
       ],
       avatars: [
         { id: 'default', label: 'Default Avatar', priceCoins: 0, minLevel: 1, emoji: '🙂' },
@@ -198,42 +204,54 @@ export class ShopConfig {
       return json({ ok: true, proof: p });
     }
 
-    // Marketplace listings (soft currency only)
+    // Marketplace listings (Admin sells items to players for Fun Tokens or Coins)
     if (path === 'market-list' && request.method === 'GET') {
       return json({ ok: true, listings: (await this.ctx.storage.get('market')) || [] });
     }
     if (path === 'market-add' && request.method === 'POST') {
-      const seller = String(body.seller || '').toLowerCase();
-      const token = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
-      const ur = seller && token ? await this.env.USERS.get(this.env.USERS.idFromName(seller)).fetch(new Request('https://user/me', { headers: { Authorization: 'Bearer ' + token } })) : null;
-      if (!ur || !ur.ok) return json({ ok: false, error: 'auth' }, 401);
-      const sellerData = await ur.json();
-      const itemType = String(body.itemType || ''), itemId = String(body.itemId || '');
+      const admHeader = request.headers.get('X-Admin-Secret') || '';
+      if (!secret || (body.secret !== secret && admHeader !== secret)) {
+        return json({ ok: false, error: 'Only admin can sell items in the marketplace' }, 403);
+      }
+      const itemType = String(body.itemType || ''), itemId = String(body.itemId || '').trim();
+      const label = String(body.label || `${itemType}:${itemId}`).trim().slice(0, 48);
+      const emoji = String(body.emoji || '').trim().slice(0, 8);
       const priceFun = Number(body.priceFun) || 0, priceCoins = Number(body.priceCoins) || 0;
-      const owned = itemType === 'skin' ? sellerData.user?.ownedSkins : itemType === 'avatar' ? sellerData.user?.ownedAvatars : itemType === 'mic' ? sellerData.user?.ownedMics : itemType === 'room' ? sellerData.user?.roomDecor : [];
-      if (!['skin','avatar','mic','room'].includes(itemType) || !/^[a-z0-9_-]{1,40}$/i.test(itemId) || !(owned || []).includes(itemId) || priceFun < 0 || priceCoins < 0 || priceFun + priceCoins <= 0 || priceFun > 1000000 || priceCoins > 1000000) return json({ ok: false, error: 'invalid listing or item not owned' }, 400);
+      if (!['skin','avatar','mic','room'].includes(itemType) || !/^[a-z0-9_-]{1,40}$/i.test(itemId) || priceFun < 0 || priceCoins < 0 || priceFun + priceCoins <= 0 || priceFun > 1000000 || priceCoins > 1000000) {
+        return json({ ok: false, error: 'Invalid listing parameters' }, 400);
+      }
       const listings = (await this.ctx.storage.get('market')) || [];
-      const item = { id: rid(6), seller, itemType, itemId, priceFun, priceCoins, time: Date.now() };
+      const item = { id: rid(6), seller: 'admin', isAdminListing: true, itemType, itemId, label, emoji, priceFun, priceCoins, time: Date.now() };
       listings.push(item); while (listings.length > 100) listings.shift();
       await this.ctx.storage.put('market', listings);
       return json({ ok: true, item });
     }
+    if (path === 'market-remove' && request.method === 'POST') {
+      const admHeader = request.headers.get('X-Admin-Secret') || '';
+      if (!secret || (body.secret !== secret && admHeader !== secret)) return json({ ok: false, error: 'unauthorized' }, 403);
+      const listings = (await this.ctx.storage.get('market')) || [];
+      const next = listings.filter(x => x.id !== body.listingId);
+      await this.ctx.storage.put('market', next);
+      return json({ ok: true, listings: next });
+    }
     if (path === 'market-buy' && request.method === 'POST') {
-      // P2P: buyer pays seller in fun or coins for an item listing
       const listings = (await this.ctx.storage.get('market')) || [];
       const listing = listings.find(x => x.id === body.listingId);
       if (!listing) return json({ ok: false, error: 'listing not found' }, 404);
-      if (listing.seller === body.buyer) return json({ ok: false, error: 'cannot buy own' }, 400);
-      // deduct from buyer, credit seller, transfer item ownership via user DOs
-      const pay = await this.env.USERS.get(this.env.USERS.idFromName(body.buyer)).fetch(new Request('https://user/market-pay', {
+      const buyer = String(body.buyer || '').trim().toLowerCase();
+      if (!buyer) return json({ ok: false, error: 'buyer required' }, 400);
+      if (listing.seller === buyer) return json({ ok: false, error: 'cannot buy own' }, 400);
+      const pay = await this.env.USERS.get(this.env.USERS.idFromName(buyer)).fetch(new Request('https://user/market-pay', {
         method: 'POST', headers: internalHeaders(this.env),
         body: JSON.stringify({ token: body.token, priceFun: listing.priceFun, priceCoins: listing.priceCoins, itemType: listing.itemType, itemId: listing.itemId, seller: listing.seller })
       }));
       const pj = await pay.json();
       if (!pj.ok) return json(pj, 400);
-      const next = listings.filter(x => x.id !== listing.id);
-      await this.ctx.storage.put('market', next);
-      return json({ ok: true });
+      if (!listing.isAdminListing && listing.seller !== 'admin') {
+        const next = listings.filter(x => x.id !== listing.id);
+        await this.ctx.storage.put('market', next);
+      }
+      return json({ ok: true, user: pj.user });
     }
 
     return json({ ok: false, error: 'not found' }, 404);
@@ -275,9 +293,10 @@ export class UserAccount {
         username, displayName, salt, passHash: await hashPassword(password, salt), token: rid(24),
         created: Date.now(), voiceUntil: 0, status: 'offline', lastSeen: Date.now(),
         funTokens: cfg?.starterFunTokens ?? 100, dailyFunTokens: 0, dailyFunDate: '', coins: 0, level: 1, wins: 0, games: 0,
-        banned: false, ownedSkins: ['default'], ownedAvatars: ['default'], ownedMics: ['mic_default'],
+        ownedSkins: ['default'], ownedAvatars: ['default'], ownedMics: ['mic_default'],
         equippedSkin: 'default', equippedAvatar: 'default', equippedMic: 'mic_default',
-        roomDecor: [], referralCode: rid(4).toUpperCase(), referredBy: ref || null, referralRewarded: false,
+        roomDecor: [], roomDecorEquipped: [], friends: [], friendRequests: [],
+        referralCode: rid(4).toUpperCase(), referredBy: ref || null, referralRewarded: false,
         dailyLoginDate: '', active: false
       };
       await this.put(user);
@@ -286,6 +305,7 @@ export class UserAccount {
           method: 'POST', headers: internalHeaders(this.env),
           body: JSON.stringify({ code: user.referralCode, username })
         }));
+        await this.pushDirectory(user);
         if (ref) {
           await this.env.LOBBY.get(this.env.LOBBY.idFromName('main')).fetch(new Request('https://lobby/referral-pending', {
             method: 'POST', headers: internalHeaders(this.env),
@@ -317,13 +337,17 @@ export class UserAccount {
         }
       }
       await this.put(user);
+      await this.pushDirectory(user);
       return json({ ok: true, token: user.token, user: publicUser(user) });
     }
 
     const user = await this.get();
     const token = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '') || body.token || url.searchParams.get('token') || '';
     const authed = user && token && user.token === token;
-    const internalOnly = new Set(['receive-voice-gift','economy','market-pay','market-credit','receive-item-gift','add-referral-reward','admin-fulfill']);
+    const internalOnly = new Set([
+      'receive-voice-gift','economy','market-pay','market-credit','receive-item-gift','add-referral-reward','admin-fulfill',
+      'receive-friend-request','confirm-friend','unfriend-internal'
+    ]);
     if (internalOnly.has(path) && !isInternal(request, this.env)) return json({ ok: false, error: 'internal only' }, 403);
 
     if (path === 'me') {
@@ -345,6 +369,7 @@ export class UserAccount {
       user.displayName = displayName;
       await this.put(user);
       await this.pushPresence(user);
+      await this.pushDirectory(user);
       return json({ ok: true, user: publicUser(user) });
     }
 
@@ -518,18 +543,30 @@ export class UserAccount {
       if (!user) return json({ ok: false, error: 'no user' }, 404);
       if (body.token !== user.token) return json({ ok: false, error: 'auth' }, 401);
       const pf = Number(body.priceFun) || 0, pc = Number(body.priceCoins) || 0;
-      if ((user.funTokens || 0) < pf || (user.coins || 0) < pc) return json({ ok: false, error: 'insufficient balance' }, 400);
-      user.funTokens = (user.funTokens || 0) - pf;
+      const today = new Date().toISOString().slice(0, 10);
+      if (user.dailyFunDate !== today) { user.dailyFunTokens = 0; user.dailyFunDate = today; }
+      const totalFun = (user.dailyFunTokens || 0) + (user.funTokens || 0);
+      if (totalFun < pf || (user.coins || 0) < pc) return json({ ok: false, error: 'insufficient balance' }, 400);
+      const owned = body.itemType === 'skin' ? (user.ownedSkins || []) : body.itemType === 'avatar' ? (user.ownedAvatars || []) : body.itemType === 'mic' ? (user.ownedMics || []) : (user.roomDecor || []);
+      if (owned.includes(body.itemId)) return json({ ok: false, error: 'You already own this item' }, 400);
+      if (pf > 0) {
+        const fromDaily = Math.min(user.dailyFunTokens || 0, pf);
+        user.dailyFunTokens = (user.dailyFunTokens || 0) - fromDaily;
+        const rem = pf - fromDaily;
+        if (rem > 0) user.funTokens = (user.funTokens || 0) - rem;
+      }
       user.coins = (user.coins || 0) - pc;
       if (body.itemType === 'skin') user.ownedSkins = Array.from(new Set([...(user.ownedSkins || []), body.itemId]));
       if (body.itemType === 'avatar') user.ownedAvatars = Array.from(new Set([...(user.ownedAvatars || []), body.itemId]));
       if (body.itemType === 'mic') user.ownedMics = Array.from(new Set([...(user.ownedMics || []), body.itemId]));
       if (body.itemType === 'room') user.roomDecor = Array.from(new Set([...(user.roomDecor || []), body.itemId]));
       await this.put(user);
-      await this.env.USERS.get(this.env.USERS.idFromName(body.seller)).fetch(new Request('https://user/market-credit', {
-        method: 'POST', headers: internalHeaders(this.env),
-        body: JSON.stringify({ fun: pf, coins: pc, itemType: body.itemType, itemId: body.itemId })
-      }));
+      if (body.seller && body.seller !== 'admin') {
+        await this.env.USERS.get(this.env.USERS.idFromName(body.seller)).fetch(new Request('https://user/market-credit', {
+          method: 'POST', headers: internalHeaders(this.env),
+          body: JSON.stringify({ fun: pf, coins: pc, itemType: body.itemType, itemId: body.itemId })
+        })).catch(() => null);
+      }
       return json({ ok: true, user: publicUser(user) });
     }
 
@@ -584,26 +621,175 @@ export class UserAccount {
       return json({ ok: true });
     }
 
+    // ---- Friends endpoints ----
+    if (path === 'friends') {
+      if (!authed) return json({ ok: false, error: 'auth' }, 401);
+      const friendsList = user.friends || [];
+      let onlineMap = {}, dirMap = {};
+      try {
+        const [or, dr] = await Promise.all([
+          this.env.LOBBY.get(this.env.LOBBY.idFromName('main')).fetch('https://lobby/online'),
+          this.env.LOBBY.get(this.env.LOBBY.idFromName('main')).fetch('https://lobby/directory', { headers: internalHeaders(this.env) })
+        ]);
+        const oj = await or.json().catch(() => ({}));
+        const dj = await dr.json().catch(() => ({}));
+        (oj.users || []).forEach(u => { onlineMap[u.username] = u; });
+        dirMap = dj.directory || {};
+      } catch {}
+      const enriched = friendsList.map(fname => {
+        const on = onlineMap[fname];
+        const dr = dirMap[fname];
+        return {
+          username: fname,
+          displayName: on?.displayName || dr?.displayName || fname,
+          avatarPhoto: on?.avatarPhoto || dr?.avatarPhoto || '',
+          level: on?.level || dr?.level || 1,
+          wins: on?.wins || dr?.wins || 0,
+          voiceActive: !!on?.voiceActive,
+          status: on ? (on.status === 'busy' ? 'busy' : 'online') : 'offline',
+          lastSeen: on?.lastSeen || dr?.lastSeen || 0
+        };
+      });
+      enriched.sort((a, b) => {
+        const rank = s => s === 'online' ? 0 : s === 'busy' ? 1 : 2;
+        return rank(a.status) - rank(b.status) || (b.level - a.level);
+      });
+      return json({ ok: true, friends: enriched, requests: user.friendRequests || [] });
+    }
+
+    if (path === 'friend-request' && request.method === 'POST') {
+      if (!authed) return json({ ok: false, error: 'auth' }, 401);
+      const to = String(body.to || '').trim().toLowerCase();
+      if (!to || to === user.username) return json({ ok: false, error: 'Invalid username' }, 400);
+      if ((user.friends || []).includes(to)) return json({ ok: true, alreadyFriends: true, user: publicUser(user) });
+      // If target already requested us, auto-accept
+      if ((user.friendRequests || []).some(r => r.from === to)) {
+        user.friendRequests = (user.friendRequests || []).filter(r => r.from !== to);
+        user.friends = Array.from(new Set([...(user.friends || []), to]));
+        await this.put(user);
+        await this.env.USERS.get(this.env.USERS.idFromName(to)).fetch(new Request('https://user/confirm-friend', {
+          method: 'POST', headers: internalHeaders(this.env), body: JSON.stringify({ friend: user.username })
+        })).catch(() => null);
+        return json({ ok: true, accepted: true, user: publicUser(user) });
+      }
+      const res = await this.env.USERS.get(this.env.USERS.idFromName(to)).fetch(new Request('https://user/receive-friend-request', {
+        method: 'POST', headers: internalHeaders(this.env),
+        body: JSON.stringify({ from: user.username, fromName: user.displayName || user.username, avatarPhoto: user.avatarPhoto || '' })
+      }));
+      const rj = await res.json().catch(() => ({ ok: false, error: 'User not found' }));
+      if (!res.ok || !rj.ok) return json(rj, res.status || 404);
+      return json({ ok: true, sent: true });
+    }
+
+    if (path === 'receive-friend-request' && request.method === 'POST') {
+      if (!user) return json({ ok: false, error: 'User not found' }, 404);
+      const from = String(body.from || '').trim().toLowerCase();
+      if (!from || from === user.username) return json({ ok: false, error: 'Invalid sender' }, 400);
+      if ((user.friends || []).includes(from)) return json({ ok: true, alreadyFriends: true });
+      const reqs = user.friendRequests || [];
+      if (!reqs.some(r => r.from === from)) {
+        reqs.push({ from, fromName: String(body.fromName || from).slice(0, 18), avatarPhoto: String(body.avatarPhoto || ''), time: Date.now() });
+        while (reqs.length > 50) reqs.shift();
+        user.friendRequests = reqs;
+        await this.put(user);
+      }
+      return json({ ok: true });
+    }
+
+    if (path === 'accept-friend' && request.method === 'POST') {
+      if (!authed) return json({ ok: false, error: 'auth' }, 401);
+      const from = String(body.from || '').trim().toLowerCase();
+      if (!from) return json({ ok: false, error: 'Missing username' }, 400);
+      user.friendRequests = (user.friendRequests || []).filter(r => r.from !== from);
+      user.friends = Array.from(new Set([...(user.friends || []), from]));
+      await this.put(user);
+      await this.env.USERS.get(this.env.USERS.idFromName(from)).fetch(new Request('https://user/confirm-friend', {
+        method: 'POST', headers: internalHeaders(this.env), body: JSON.stringify({ friend: user.username })
+      })).catch(() => null);
+      return json({ ok: true, user: publicUser(user) });
+    }
+
+    if (path === 'decline-friend' && request.method === 'POST') {
+      if (!authed) return json({ ok: false, error: 'auth' }, 401);
+      const from = String(body.from || '').trim().toLowerCase();
+      user.friendRequests = (user.friendRequests || []).filter(r => r.from !== from);
+      await this.put(user);
+      return json({ ok: true, user: publicUser(user) });
+    }
+
+    if (path === 'remove-friend' && request.method === 'POST') {
+      if (!authed) return json({ ok: false, error: 'auth' }, 401);
+      const friend = String(body.friend || '').trim().toLowerCase();
+      user.friends = (user.friends || []).filter(f => f !== friend);
+      await this.put(user);
+      await this.env.USERS.get(this.env.USERS.idFromName(friend)).fetch(new Request('https://user/unfriend-internal', {
+        method: 'POST', headers: internalHeaders(this.env), body: JSON.stringify({ friend: user.username })
+      })).catch(() => null);
+      return json({ ok: true, user: publicUser(user) });
+    }
+
+    if (path === 'confirm-friend' && request.method === 'POST') {
+      if (!user) return json({ ok: false, error: 'not found' }, 404);
+      const friend = String(body.friend || '').trim().toLowerCase();
+      if (friend && friend !== user.username) {
+        user.friends = Array.from(new Set([...(user.friends || []), friend]));
+        user.friendRequests = (user.friendRequests || []).filter(r => r.from !== friend);
+        await this.put(user);
+      }
+      return json({ ok: true });
+    }
+
+    if (path === 'unfriend-internal' && request.method === 'POST') {
+      if (!user) return json({ ok: false, error: 'not found' }, 404);
+      const friend = String(body.friend || '').trim().toLowerCase();
+      user.friends = (user.friends || []).filter(f => f !== friend);
+      await this.put(user);
+      return json({ ok: true });
+    }
+
     if (path === 'admin-ban' && request.method === 'POST') {
-      if (!secret || body.secret !== secret) return json({ ok: false, error: 'unauthorized' }, 403);
+      if (!secret || (body.secret !== secret && request.headers.get('X-Admin-Secret') !== secret)) return json({ ok: false, error: 'unauthorized' }, 403);
       if (!user) return json({ ok: false }, 404);
-      user.banned = !!body.banned; await this.put(user); return json({ ok: true, user: publicUser(user) });
+      user.banned = !!body.banned; await this.put(user); await this.pushDirectory(user); return json({ ok: true, user: publicUser(user) });
     }
     if (path === 'admin-grant-voice' && request.method === 'POST') {
-      if (!secret || body.secret !== secret) return json({ ok: false, error: 'unauthorized' }, 403);
+      if (!secret || (body.secret !== secret && request.headers.get('X-Admin-Secret') !== secret)) return json({ ok: false, error: 'unauthorized' }, 403);
       if (!user) return json({ ok: false }, 404);
       const ms = Math.floor(Number(body.ms) || (Number(body.days) || 0) * DAY);
       const now = Date.now(); user.voiceUntil = Math.max(user.voiceUntil || 0, now) + ms;
-      await this.put(user); return json({ ok: true, user: publicUser(user) });
+      await this.put(user); await this.pushDirectory(user); return json({ ok: true, user: publicUser(user) });
     }
     if (path === 'admin-grant-skin' && request.method === 'POST') {
-      if (!secret || body.secret !== secret) return json({ ok: false, error: 'unauthorized' }, 403);
+      if (!secret || (body.secret !== secret && request.headers.get('X-Admin-Secret') !== secret)) return json({ ok: false, error: 'unauthorized' }, 403);
       if (!user) return json({ ok: false }, 404);
       user.ownedSkins = Array.from(new Set([...(user.ownedSkins || []), body.skinId]));
       await this.put(user); return json({ ok: true, user: publicUser(user) });
     }
+    if (path === 'admin-adjust' && request.method === 'POST') {
+      if (!secret || (body.secret !== secret && request.headers.get('X-Admin-Secret') !== secret)) return json({ ok: false, error: 'unauthorized' }, 403);
+      if (!user) return json({ ok: false, error: 'User not found' }, 404);
+      if (Number.isFinite(Number(body.addFun))) user.funTokens = Math.max(0, (user.funTokens || 0) + Number(body.addFun));
+      if (Number.isFinite(Number(body.addCoins))) user.coins = Math.max(0, (user.coins || 0) + Number(body.addCoins));
+      if (Number.isFinite(Number(body.setLevel)) && Number(body.setLevel) >= 1) user.level = Math.floor(Number(body.setLevel));
+      if (Number.isFinite(Number(body.voiceDays)) && Number(body.voiceDays) > 0) {
+        user.voiceUntil = Math.max(user.voiceUntil || 0, Date.now()) + Math.floor(Number(body.voiceDays) * DAY);
+      }
+      if (body.grantType && body.grantId) {
+        if (body.grantType === 'skin') user.ownedSkins = Array.from(new Set([...(user.ownedSkins || []), body.grantId]));
+        if (body.grantType === 'avatar') user.ownedAvatars = Array.from(new Set([...(user.ownedAvatars || []), body.grantId]));
+        if (body.grantType === 'mic') user.ownedMics = Array.from(new Set([...(user.ownedMics || []), body.grantId]));
+        if (body.grantType === 'room') user.roomDecor = Array.from(new Set([...(user.roomDecor || []), body.grantId]));
+      }
+      await this.put(user); await this.pushDirectory(user); await this.pushPresence(user);
+      return json({ ok: true, user: publicUser(user) });
+    }
+    if (path === 'admin-user' && request.method === 'GET') {
+      if (!secret || request.headers.get('X-Admin-Secret') !== secret) return json({ ok: false, error: 'unauthorized' }, 403);
+      if (!user) return json({ ok: false, error: 'User not found' }, 404);
+      return json({ ok: true, user: publicUser(user) });
+    }
     if (path === 'admin-fulfill' && request.method === 'POST') {
-      if (!secret || body.secret !== secret) return json({ ok: false, error: 'unauthorized' }, 403);
+      if (!secret || (body.secret !== secret && request.headers.get('X-Admin-Secret') !== secret)) return json({ ok: false, error: 'unauthorized' }, 403);
       if (!user) return json({ ok: false }, 404);
       const cfg = body.config || {};
       const now = Date.now();
@@ -624,6 +810,20 @@ export class UserAccount {
     }
 
     return json({ ok: false, error: 'not found' }, 404);
+  }
+
+  async pushDirectory(user) {
+    try {
+      await this.env.LOBBY.get(this.env.LOBBY.idFromName('main')).fetch(new Request('https://lobby/directory-upsert', {
+        method: 'POST', headers: internalHeaders(this.env),
+        body: JSON.stringify({
+          username: user.username, displayName: user.displayName, avatarPhoto: user.avatarPhoto || '',
+          level: user.level || 1, wins: user.wins || 0, equippedAvatar: user.equippedAvatar || 'default',
+          banned: !!user.banned, lastSeen: user.lastSeen || Date.now(),
+          voiceActive: !user.banned && (user.voiceUntil || 0) > Date.now()
+        })
+      }));
+    } catch {}
   }
 
   async pushPresence(user) {
@@ -651,13 +851,50 @@ export class Lobby {
     let body = {};
     if (request.method === 'POST') try { body = await request.json(); } catch {}
     const secret = configuredSecret(this.env);
-    const internalOnly = new Set(['presence','register-refcode','referral-pending','referral-complete','admin-msg']);
+    const internalOnly = new Set(['presence','register-refcode','referral-pending','referral-complete','admin-msg','directory-upsert','directory']);
     if (internalOnly.has(path) && !isInternal(request, this.env)) return json({ ok: false, error: 'internal only' }, 403);
     const bearer = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
     const lobbyAuth = async (username) => {
       if (!username || !bearer) return false;
       try { const r = await this.env.USERS.get(this.env.USERS.idFromName(String(username).toLowerCase())).fetch(new Request('https://user/me', { headers: { Authorization: 'Bearer ' + bearer } })); return r.ok; } catch { return false; }
     };
+
+    if (path === 'directory-upsert' && request.method === 'POST') {
+      if (!body.username) return json({ ok: false }, 400);
+      const dir = (await this.ctx.storage.get('directory')) || {};
+      dir[body.username] = {
+        username: body.username, displayName: body.displayName || body.username,
+        avatarPhoto: body.avatarPhoto || '', level: body.level || 1, wins: body.wins || 0,
+        equippedAvatar: body.equippedAvatar || 'default', banned: !!body.banned,
+        voiceActive: !!body.voiceActive, lastSeen: body.lastSeen || Date.now()
+      };
+      await this.ctx.storage.put('directory', dir);
+      return json({ ok: true });
+    }
+
+    if (path === 'directory') {
+      return json({ ok: true, directory: (await this.ctx.storage.get('directory')) || {} });
+    }
+
+    if (path === 'search-users') {
+      const q = String(url.searchParams.get('q') || '').trim().toLowerCase();
+      const dir = (await this.ctx.storage.get('directory')) || {};
+      const online = (await this.ctx.storage.get('online')) || {};
+      const now = Date.now();
+      const out = Object.values(dir)
+        .filter(u => !q || u.username.includes(q) || String(u.displayName || '').toLowerCase().includes(q))
+        .slice(0, 25)
+        .map(u => {
+          const on = online[u.username] && now - (online[u.username].lastSeen || 0) <= 5 * 60 * 1000 ? online[u.username] : null;
+          return {
+            username: u.username, displayName: on?.displayName || u.displayName,
+            avatarPhoto: on?.avatarPhoto || u.avatarPhoto || '',
+            level: on?.level || u.level || 1, wins: on?.wins || u.wins || 0,
+            status: on ? (on.status === 'busy' ? 'busy' : 'online') : 'offline'
+          };
+        });
+      return json({ ok: true, users: out });
+    }
 
     if (path === 'presence' && request.method === 'POST') {
       const list = (await this.ctx.storage.get('online')) || {};
@@ -718,55 +955,78 @@ export class Lobby {
       return json({ ok: true, roomCode, create: true, stake, mode, playersCount: 1 });
     }
 
-    // Play request → on accept create room code and return to both
+    // Play request → preserves sender profile + shared roomCode, or creates room on accept
     if (path === 'play-request' && request.method === 'POST') {
-      const { from, to, fromName, stake } = body;
+      const from = String(body.from || '').trim().toLowerCase();
+      const to = String(body.to || '').trim().toLowerCase();
       if (!(await lobbyAuth(from))) return json({ ok: false, error: 'auth' }, 401);
-      if (!from || !to) return json({ ok: false }, 400);
+      if (!from || !to || from === to) return json({ ok: false, error: 'Invalid player' }, 400);
+      const dir = (await this.ctx.storage.get('directory')) || {};
+      const online = (await this.ctx.storage.get('online')) || {};
+      const senderInfo = online[from] || dir[from] || {};
       const key = `req:${to}`;
-      const reqs = (await this.ctx.storage.get(key)) || [];
+      let reqs = (await this.ctx.storage.get(key)) || [];
+      const now = Date.now();
+      reqs = reqs.filter(r => now - r.time < 3 * 60 * 1000 && r.from !== from);
       const id = rid(6);
-      reqs.push({ from, fromName, stake: Number(stake) || 0, time: Date.now(), id });
+      const cleanRoom = /^[A-Z0-9]{6}$/.test(String(body.roomCode || '').toUpperCase()) ? String(body.roomCode).toUpperCase() : '';
+      reqs.push({
+        id, from,
+        fromName: String(body.fromName || senderInfo.displayName || from).slice(0, 18),
+        avatarPhoto: String(body.avatarPhoto || senderInfo.avatarPhoto || ''),
+        level: Number(body.level || senderInfo.level || 1),
+        wins: Number(body.wins || senderInfo.wins || 0),
+        stake: Number(body.stake) || 0,
+        mode: body.mode === 'quick' ? 'quick' : 'classic',
+        roomCode: cleanRoom,
+        time: now
+      });
       while (reqs.length > 20) reqs.shift();
       await this.ctx.storage.put(key, reqs);
-      return json({ ok: true, id });
+      return json({ ok: true, id, roomCode: cleanRoom });
     }
 
     if (path === 'play-requests') {
-      const username = url.searchParams.get('u') || '';
+      const username = String(url.searchParams.get('u') || '').trim().toLowerCase();
       if (!(await lobbyAuth(username))) return json({ ok: false, error: 'auth' }, 401);
       let reqs = (await this.ctx.storage.get(`req:${username}`)) || [];
       const now = Date.now();
-      reqs = reqs.filter(r => now - r.time < 10 * 60 * 1000);
+      reqs = reqs.filter(r => now - r.time < 3 * 60 * 1000);
       await this.ctx.storage.put(`req:${username}`, reqs);
-      return json({ ok: true, requests: reqs });
+      return json({ ok: true, requests: reqs.slice().reverse() });
     }
 
     if (path === 'accept-request' && request.method === 'POST') {
-      // creates room code, stores invite for both players
-      const { username, id } = body;
+      const username = String(body.username || '').trim().toLowerCase();
+      const id = body.id;
       if (!(await lobbyAuth(username))) return json({ ok: false, error: 'auth' }, 401);
       let reqs = (await this.ctx.storage.get(`req:${username}`)) || [];
       const r = reqs.find(x => x.id === id);
       if (!r) return json({ ok: false, error: 'request gone' }, 404);
       reqs = reqs.filter(x => x.id !== id);
       await this.ctx.storage.put(`req:${username}`, reqs);
+      if (r.roomCode) {
+        return json({ ok: true, roomCode: r.roomCode, stake: r.stake || 0, mode: r.mode || 'classic', hasHostRoom: true, guest: r.from });
+      }
       const code = rid(3).toUpperCase().slice(0, 6);
       const roomCode = (code + rid(2)).toUpperCase().replace(/[^A-Z0-9]/g, 'A').slice(0, 6);
       const invites = (await this.ctx.storage.get('invites')) || {};
-      const inv = { roomCode, host: username, guest: r.from, stake: r.stake || 0, time: Date.now() };
+      const inv = { id: rid(4), roomCode, host: username, guest: r.from, stake: r.stake || 0, mode: r.mode || 'classic', time: Date.now() };
       invites[r.from] = inv;
-      invites[username] = inv;
       await this.ctx.storage.put('invites', invites);
-      return json({ ok: true, roomCode, stake: r.stake || 0, guest: r.from });
+      return json({ ok: true, roomCode, stake: r.stake || 0, mode: r.mode || 'classic', hasHostRoom: false, guest: r.from });
     }
 
     if (path === 'my-invite') {
-      const u = url.searchParams.get('u') || '';
+      const u = String(url.searchParams.get('u') || '').trim().toLowerCase();
       if (!(await lobbyAuth(u))) return json({ ok: false, error: 'auth' }, 401);
       const invites = (await this.ctx.storage.get('invites')) || {};
       const inv = invites[u];
-      if (inv && Date.now() - inv.time < 5 * 60 * 1000) return json({ ok: true, invite: inv });
+      if (inv && Date.now() - inv.time < 5 * 60 * 1000) {
+        delete invites[u];
+        await this.ctx.storage.put('invites', invites);
+        return json({ ok: true, invite: inv });
+      }
       return json({ ok: true, invite: null });
     }
 
@@ -789,6 +1049,19 @@ export class Lobby {
       if (!pending[body.code]) pending[body.code] = [];
       pending[body.code].push(body.newUser);
       await this.ctx.storage.put('refpending', pending);
+      // Automatically connect referrer and newly created user as friends
+      const map = (await this.ctx.storage.get('refmap')) || {};
+      const owner = map[body.code];
+      if (owner && body.newUser && owner !== body.newUser) {
+        await Promise.all([
+          this.env.USERS.get(this.env.USERS.idFromName(owner)).fetch(new Request('https://user/confirm-friend', {
+            method: 'POST', headers: internalHeaders(this.env), body: JSON.stringify({ friend: body.newUser })
+          })).catch(() => null),
+          this.env.USERS.get(this.env.USERS.idFromName(body.newUser)).fetch(new Request('https://user/confirm-friend', {
+            method: 'POST', headers: internalHeaders(this.env), body: JSON.stringify({ friend: owner })
+          })).catch(() => null)
+        ]);
+      }
       return json({ ok: true });
     }
     if (path === 'referral-complete' && request.method === 'POST') {
@@ -802,14 +1075,21 @@ export class Lobby {
         rewardMs = cj.config?.referralRewardVoiceMs ?? rewardMs;
         rewardFun = cj.config?.referralRewardFunTokens ?? rewardFun;
       } catch {}
-      // reward referrer
-      await this.env.USERS.get(this.env.USERS.idFromName(owner)).fetch(new Request('https://user/add-referral-reward', {
-        method: 'POST', headers: internalHeaders(this.env), body: JSON.stringify({ ms: rewardMs, fun: rewardFun })
-      }));
-      // reward new user (already marked referralRewarded on their side)
-      await this.env.USERS.get(this.env.USERS.idFromName(body.newUser)).fetch(new Request('https://user/add-referral-reward', {
-        method: 'POST', headers: internalHeaders(this.env), body: JSON.stringify({ ms: rewardMs, fun: rewardFun })
-      }));
+      // reward referrer & new user + ensure mutual friendship
+      await Promise.all([
+        this.env.USERS.get(this.env.USERS.idFromName(owner)).fetch(new Request('https://user/add-referral-reward', {
+          method: 'POST', headers: internalHeaders(this.env), body: JSON.stringify({ ms: rewardMs, fun: rewardFun })
+        })),
+        this.env.USERS.get(this.env.USERS.idFromName(body.newUser)).fetch(new Request('https://user/add-referral-reward', {
+          method: 'POST', headers: internalHeaders(this.env), body: JSON.stringify({ ms: rewardMs, fun: rewardFun })
+        })),
+        this.env.USERS.get(this.env.USERS.idFromName(owner)).fetch(new Request('https://user/confirm-friend', {
+          method: 'POST', headers: internalHeaders(this.env), body: JSON.stringify({ friend: body.newUser })
+        })).catch(() => null),
+        this.env.USERS.get(this.env.USERS.idFromName(body.newUser)).fetch(new Request('https://user/confirm-friend', {
+          method: 'POST', headers: internalHeaders(this.env), body: JSON.stringify({ friend: owner })
+        })).catch(() => null)
+      ]);
       return json({ ok: true, owner, rewardMs, rewardFun });
     }
 
@@ -823,6 +1103,29 @@ export class Lobby {
     if (path === 'admin-inbox') {
       if (!secret || request.headers.get('X-Admin-Secret') !== secret) return json({ ok: false, error: 'unauthorized' }, 403);
       return json({ ok: true, messages: ((await this.ctx.storage.get('admin_inbox')) || []).slice().reverse() });
+    }
+    if (path === 'admin-overview') {
+      if (!secret || request.headers.get('X-Admin-Secret') !== secret) return json({ ok: false, error: 'unauthorized' }, 403);
+      const dir = (await this.ctx.storage.get('directory')) || {};
+      const online = (await this.ctx.storage.get('online')) || {};
+      const now = Date.now();
+      const users = Object.values(dir).map(u => {
+        const on = online[u.username] && now - (online[u.username].lastSeen || 0) <= 5 * 60 * 1000 ? online[u.username] : null;
+        return {
+          ...u,
+          displayName: on?.displayName || u.displayName,
+          level: on?.level || u.level || 1,
+          wins: on?.wins || u.wins || 0,
+          status: on ? (on.status === 'busy' ? 'busy' : 'online') : 'offline'
+        };
+      });
+      users.sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0));
+      return json({
+        ok: true,
+        users,
+        onlineCount: users.filter(u => u.status !== 'offline').length,
+        totalUsers: users.length
+      });
     }
 
     return json({ ok: false, error: 'not found' }, 404);
@@ -976,24 +1279,62 @@ export class LudoRoom {
     }
 
     if (data.type === 'leave') {
-      if (room.state && !room.state.finished && room.locked) {
-        room.players[seat].connected = false;
-        room.disconnects = room.disconnects || {};
-        room.disconnects[username] = Date.now();
-        await this.ctx.storage.put('room', room);
-        this.broadcast(room, username + ' disconnected (60s to return)');
-        this.broadcastRaw({ type: 'peer-left', username, soft: true });
-        return;
-      }
+      const wasActive = !!(room.state && !room.state.finished && room.locked);
+      const leavingName = room.players[seat]?.name || username;
+      const leavingIdx = seat;
       room.players = room.players.filter(p => p.username !== username);
+      if (room.disconnects?.[username]) delete room.disconnects[username];
+      if (room.votes?.[username]) delete room.votes[username];
       if (room.host === username) {
         const nextHost = room.players.find(p => !p.isBot);
         room.host = nextHost?.username || null;
       }
-      if (!room.players.some(p => !p.isBot)) { room.players = []; room.state = null; room.locked = false; room.paid = false; room.pot = 0; }
+      att.explicitLeave = true;
+      ws.serializeAttachment(att);
+
+      const humansLeft = room.players.filter(p => !p.isBot);
+      if (humansLeft.length === 0) {
+        room.players = []; room.state = null; room.locked = false; room.paid = false; room.pot = 0;
+        await this.ctx.storage.put('room', room);
+        this.broadcastRaw({ type: 'peer-left', username });
+        return;
+      }
+
+      let msgText = `${leavingName} बाहिरिनुभयो`;
+      if (wasActive) {
+        if (room.players.length === 1) {
+          const lastPl = room.players[0];
+          room.state.finished = true; room.state.winner = 0; room.state.rolled = false; room.state.dice = 0;
+          room.locked = false;
+          const winBonus = room.paid && room.pot > 0 ? room.pot : 10;
+          if (!lastPl.isBot) {
+            await this.env.USERS.get(this.env.USERS.idFromName(lastPl.username)).fetch(new Request('https://user/economy', {
+              method: 'POST', headers: internalHeaders(this.env),
+              body: JSON.stringify({ funDelta: winBonus, win: true, game: true, autoConvert: true })
+            })).catch(() => null);
+          }
+          room.lastPot = room.paid && room.pot > 0 ? room.pot : winBonus;
+          room.pot = 0; room.paid = false;
+          msgText = `Winner: ${lastPl.name} (opponent left)`;
+        } else {
+          if (leavingIdx < room.state.turn) {
+            room.state.turn = Math.max(0, room.state.turn - 1);
+          } else if (leavingIdx === room.state.turn) {
+            room.state.turn = room.state.turn % room.players.length;
+            room.state.rolled = false; room.state.dice = 0; room.state.streak = 0;
+          } else if (room.state.turn >= room.players.length) {
+            room.state.turn = 0;
+          }
+          msgText = `${leavingName} खेलबाट बाहिरिनुभयो — बाँकी खेल जारी छ`;
+        }
+      }
+
       await this.ctx.storage.put('room', room);
-      this.broadcast(room, 'Player left');
+      this.broadcast(room, msgText);
       this.broadcastRaw({ type: 'peer-left', username });
+      if (wasActive && room.state && !room.state.finished) {
+        this.scheduleBotIfNeeded(room);
+      }
       return;
     }
 
@@ -1219,17 +1560,28 @@ export class LudoRoom {
 
   async webSocketClose(ws) {
     const att = ws.deserializeAttachment() || {};
-    if (!att.username) return;
+    if (!att.username || att.explicitLeave) return;
     let room = await this.ctx.storage.get('room');
     if (!room) return;
     const p = room.players.find(x => x.username === att.username);
-    if (p && room.locked && room.state && !room.state.finished) {
+    if (!p) return;
+    if (room.locked && room.state && !room.state.finished) {
       p.connected = false;
       room.disconnects = room.disconnects || {};
       room.disconnects[att.username] = Date.now();
       await this.ctx.storage.put('room', room);
       this.broadcast(room, att.username + ' disconnected');
       this.broadcastRaw({ type: 'peer-left', username: att.username, soft: true });
+    } else if (!room.locked) {
+      room.players = room.players.filter(x => x.username !== att.username);
+      if (room.host === att.username) {
+        const nextHost = room.players.find(x => !x.isBot);
+        room.host = nextHost?.username || null;
+      }
+      if (!room.players.some(x => !x.isBot)) { room.players = []; room.state = null; room.locked = false; room.paid = false; room.pot = 0; }
+      await this.ctx.storage.put('room', room);
+      this.broadcast(room, 'Player left');
+      this.broadcastRaw({ type: 'peer-left', username: att.username });
     }
   }
   async webSocketError() {}
