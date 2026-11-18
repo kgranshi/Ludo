@@ -1,0 +1,31 @@
+{
+  "id": "/admin.html",
+  "name": "नेपाली लुडो — Admin Control Panel",
+  "short_name": "Ludo Admin",
+  "description": "Nepali Ludo Admin Control Panel for order approvals, push alerts, marketplace, and players.",
+  "start_url": "/admin.html",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#0b1326",
+  "background_color": "#0b1326",
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

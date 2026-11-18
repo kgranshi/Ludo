@@ -3,6 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0b1326">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ludo Admin">
+<link rel="manifest" href="/admin-manifest.json">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="/pwa-192x192.png">
 <title>नेपाली लुडो — Admin Control Panel</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -65,10 +73,37 @@ input,select,textarea{
 .panel{display:none}.panel.active{display:block}
 .sub{color:var(--muted);font-size:12px;margin:2px 0 0}
 .proof-img{max-width:220px;max-height:160px;border-radius:8px;border:1px solid var(--line);margin-top:8px;display:block}
+.alert-banner{
+  display:none;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  padding:12px 16px;border-radius:12px;margin-bottom:16px;
+  background:linear-gradient(135deg,rgba(200,30,58,0.28),rgba(229,169,60,0.22));
+  border:1px solid rgba(229,169,60,0.65);box-shadow:0 8px 24px rgba(0,0,0,0.35);
+}
+.badge{
+  display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;
+  font-size:11px;font-weight:700;letter-spacing:0.02em;
+}
+.badge-pending{background:rgba(245,158,11,0.2);color:#fbbf24;border:1px solid rgba(245,158,11,0.45)}
+.badge-approved{background:rgba(16,185,129,0.2);color:#34d399;border:1px solid rgba(16,185,129,0.45)}
+.badge-rejected{background:rgba(239,68,68,0.2);color:#f87171;border:1px solid rgba(239,68,68,0.45)}
 .toast{
   position:fixed;left:50%;bottom:20px;transform:translateX(-50%);
   background:#1e293b;border:1px solid var(--gold);color:#fff;padding:10px 16px;border-radius:10px;
   font-size:13px;font-weight:700;z-index:100;display:none;max-width:90vw;
+}
+.pin-overlay{
+  position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;padding:16px;
+  background:rgba(7,12,24,0.94);backdrop-filter:blur(12px);
+}
+.pin-overlay.open{display:flex}
+.pin-card{
+  width:100%;max-width:360px;background:var(--surface);border:1px solid rgba(229,169,60,0.45);
+  border-radius:18px;padding:24px;text-align:center;box-shadow:0 24px 60px rgba(0,0,0,0.65);
+}
+.push-bar{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  background:rgba(16,185,129,0.10);border:1px solid rgba(16,185,129,0.35);
+  border-radius:12px;padding:12px 16px;margin-bottom:16px;
 }
 </style>
 </head>
@@ -85,9 +120,11 @@ input,select,textarea{
       <button type="button" data-panel="shop">पसल र नियम (Shop &amp; Rules)</button>
       <button type="button" data-panel="proofs">भुक्तानी र सन्देश (Proofs)</button>
     </nav>
-    <div style="display:flex;gap:8px;align-items:center">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <button id="pwaInstallAdmBtn" class="btn btn-primary btn-sm" type="button" style="display:none">📲 App इन्स्टल</button>
       <a href="/" class="btn btn-secondary btn-sm" style="text-decoration:none">Public App ↗</a>
-      <button id="lockBtn" class="btn btn-danger btn-sm" type="button" style="display:none">Lock</button>
+      <button id="lockBtn" class="btn btn-secondary btn-sm" type="button" style="display:none">🔒 Lock (1122)</button>
+      <button id="fullLogoutBtn" class="btn btn-danger btn-sm" type="button" style="display:none">Logout</button>
     </div>
   </div>
 </header>
@@ -96,7 +133,7 @@ input,select,textarea{
   <!-- LOGIN GATE -->
   <section id="loginCard" class="surface" style="max-width:440px;margin:40px auto">
     <h1 style="font-size:20px;margin-bottom:6px">Admin Access</h1>
-    <p class="sub" style="margin-bottom:14px">Enter your server <code class="num">ADMIN_SECRET</code> (24+ chars) to manage players, marketplace listings, shop prices, and payment proofs.</p>
+    <p class="sub" style="margin-bottom:14px">Enter your server <code class="num">ADMIN_SECRET</code> (24+ chars). लगइन सेसन सुरक्षित रहन्छ र ५ मिनेट निष्क्रिय भएपछि <b>1122</b> Lock मात्र लाग्छ।</p>
     <div class="field">
       <label for="secret">Admin Secret</label>
       <input id="secret" type="password" autocomplete="current-password" placeholder="Minimum 24 characters">
@@ -107,6 +144,26 @@ input,select,textarea{
 
   <!-- ADMIN WORKSPACE -->
   <div id="adminApp" style="display:none">
+    <div class="push-bar" id="pushStatusCard">
+      <div>
+        <strong style="font-size:14px;color:#6ee7b7">🔔 मोबाइल Web Push र Email सूचना</strong>
+        <div class="sub num" id="pushStatusText" style="color:#e2e8f0">स्थिति जाँच हुँदैछ...</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" id="enablePushBtn" type="button">🔔 Push Notification अन गर्नुहोस्</button>
+        <button class="btn btn-secondary btn-sm" id="testAlertBtn" type="button">🧪 Test Alert</button>
+      </div>
+    </div>
+
+    <div id="pendingAlertBanner" class="alert-banner" role="alert">
+      <div>
+        <strong style="color:#fde68a;font-size:14px">🔔 पेन्डिङ Gold Recharge अर्डर बाँकी छ!</strong>
+        <div class="sub" id="pendingAlertText" style="color:#f8fafc">प्रमाणीकरण पर्खिरहेको रसिद जाँच गर्नुहोस्।</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-primary btn-sm" id="jumpToProofsBtn" type="button">अर्डर/रसिद हेर्नुहोस् ↗</button>
+      </div>
+    </div>
     <div class="grid-4">
       <div class="stat-card"><div class="stat-label">कुल खेलाडी (Total Users)</div><div class="stat-val num" id="stTotalUsers">0</div></div>
       <div class="stat-card"><div class="stat-label">अहिले अनलाइन (Online Now)</div><div class="stat-val num" id="stOnlineUsers" style="color:var(--emerald)">0</div></div>
@@ -142,7 +199,8 @@ input,select,textarea{
 
           <div class="grid-2">
             <div class="field"><label>Add / Grant Fun Tokens</label><input id="adjFun" type="number" value="0"></div>
-            <div class="field"><label>Add / Grant Coins</label><input id="adjCoins" type="number" value="0"></div>
+            <div class="field"><label>Add / Grant Silver Coins (🥈)</label><input id="adjSilver" type="number" value="0"></div>
+            <div class="field"><label>Add / Grant Gold Coins (🥇)</label><input id="adjGold" type="number" value="0"></div>
             <div class="field"><label>Set Level (optional)</label><input id="adjLevel" type="number" placeholder="keep current" min="1"></div>
             <div class="field"><label>Grant Voice (Days)</label><input id="adjVoiceDays" type="number" value="0" min="0"></div>
           </div>
@@ -191,8 +249,9 @@ input,select,textarea{
             <div class="field"><label>Item ID</label><input id="mktItemId" placeholder="gold"></div>
             <div class="field"><label>Display Title</label><input id="mktLabel" placeholder="Dhaka Gold Board"></div>
             <div class="field"><label>Emoji Icon</label><input id="mktEmoji" placeholder="👑" value="🎁"></div>
-            <div class="field"><label>Price (Fun Tokens)</label><input id="mktFun" type="number" value="150" min="0"></div>
-            <div class="field"><label>Price (Coins)</label><input id="mktCoins" type="number" value="0" min="0"></div>
+            <div class="field"><label>Price (Fun Tokens)</label><input id="mktFun" type="number" value="0" min="0"></div>
+            <div class="field"><label>Price (🥈 Silver Coins)</label><input id="mktSilver" type="number" value="15" min="0"></div>
+            <div class="field"><label>Price (🥇 Gold Coins)</label><input id="mktGold" type="number" value="0" min="0"></div>
           </div>
           <button class="btn btn-primary" id="mktAddBtn" type="button" style="width:100%">बजारमा बिक्रीको लागि राख्नुहोस् (Publish Listing)</button>
         </div>
@@ -222,19 +281,30 @@ input,select,textarea{
         </div>
         <div class="grid-3">
           <div class="field"><label>Starter Fun Tokens (New User)</label><input id="cfgStarterFun" type="number"></div>
-          <div class="field"><label>Daily Login Fun Tokens</label><input id="cfgDailyFun" type="number"></div>
+          <div class="field"><label>Daily Base Fun (Lv 1: default 30)</label><input id="cfgDailyBase" type="number"></div>
+          <div class="field"><label>Daily +Per Level Fun (default 20)</label><input id="cfgDailyPerLv" type="number"></div>
+          <div class="field"><label>Level-Up Cost (🥇 Gold, default 10)</label><input id="cfgLvGold" type="number"></div>
           <div class="field"><label>Referral Fun Reward</label><input id="cfgRefFun" type="number"></div>
           <div class="field"><label>Referral Voice Reward (Days)</label><input id="cfgRefDays" type="number"></div>
           <div class="field"><label>Match Stakes (comma-separated)</label><input id="cfgStakes" placeholder="0,10,20,50,100"></div>
-          <div class="field"><label>Real-Money Voice Payments</label>
-            <select id="cfgPayEnabled"><option value="false">Disabled (Coming Soon)</option><option value="true">Enabled</option></select>
+          <div class="field"><label>Gold Recharge Enabled</label>
+            <select id="cfgGoldEnabled"><option value="true">Enabled</option><option value="false">Disabled</option></select>
           </div>
-          <div class="field"><label>eSewa ID / Instruction</label><input id="cfgEsewa" placeholder="98xxxxxxxx"></div>
-          <div class="field"><label>Khalti ID / Instruction</label><input id="cfgKhalti" placeholder="98xxxxxxxx"></div>
+          <div class="field"><label>Payment Methods Enabled</label>
+            <select id="cfgPayEnabled"><option value="true">Enabled</option><option value="false">Disabled</option></select>
+          </div>
+          <div class="field"><label>eSewa ID / Account</label><input id="cfgEsewa" placeholder="98xxxxxxxx"></div>
+          <div class="field"><label>eSewa QR Image URL (optional)</label><input id="cfgEsewaQr" placeholder="https://..."></div>
+          <div class="field"><label>Khalti ID / Account</label><input id="cfgKhalti" placeholder="98xxxxxxxx"></div>
+          <div class="field"><label>Khalti QR Image URL (optional)</label><input id="cfgKhaltiQr" placeholder="https://..."></div>
+          <div class="field"><label>Bank / FonePay Account</label><input id="cfgBank" placeholder="Bank A/C No &amp; Name"></div>
+          <div class="field"><label>Bank / FonePay QR Image URL</label><input id="cfgBankQr" placeholder="https://..."></div>
+          <div class="field"><label>Admin Notification Email</label><input id="cfgNotifyEmail" type="email" placeholder="kgranshi@gmail.com"></div>
+          <div class="field"><label>Screen Lock PIN (5 min idle)</label><input id="cfgLockPin" type="text" maxlength="10" placeholder="1122"></div>
         </div>
         <div class="field" style="margin-top:12px">
-          <label>Advanced Full Config JSON (Skins, Avatars, Mics, Room Items, Voice Packages)</label>
-          <textarea id="cfgJson" rows="10" class="num" style="font-size:12px"></textarea>
+          <label>Advanced Full Config JSON (Gold Packages, Voice Packages, Skins, Avatars, Mics, Room Items)</label>
+          <textarea id="cfgJson" rows="12" class="num" style="font-size:12px"></textarea>
         </div>
         <button class="btn btn-secondary" id="saveRawCfgBtn" type="button">Save Raw JSON Config</button>
       </div>
@@ -263,19 +333,60 @@ input,select,textarea{
   </div>
 </main>
 
+<div class="pin-overlay" id="pinLockOverlay" role="dialog" aria-modal="true" aria-label="Admin Screen Lock">
+  <div class="pin-card">
+    <div style="font-size:36px;margin-bottom:6px">🔒</div>
+    <h2 style="font-size:20px;margin-bottom:4px">Admin Panel Lock</h2>
+    <p class="sub" style="margin-bottom:14px">लगआउट भएको छैन — पुन: खोल्न PIN (<b>1122</b>) राख्नुहोस्।</p>
+    <div class="field">
+      <input id="pinInput" type="password" inputmode="numeric" maxlength="10" placeholder="PIN (1122)" style="text-align:center;font-size:22px;letter-spacing:6px" autocomplete="off">
+    </div>
+    <button id="pinUnlockBtn" class="btn btn-primary" type="button" style="width:100%;margin-bottom:8px">Unlock Screen</button>
+    <button id="pinLogoutBtn" class="btn btn-danger btn-sm" type="button" style="width:100%">Full Logout (Clear Secret)</button>
+    <p id="pinMsg" class="sub" style="color:#f87171;margin-top:8px"></p>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
 const $ = id => document.getElementById(id);
-let adminSecret = sessionStorage.getItem('adm') || '';
+const IDLE_LOCK_MS = 5 * 60 * 1000;
+let adminSecret = localStorage.getItem('adm_secret_v1') || sessionStorage.getItem('adm') || '';
+if (adminSecret) localStorage.setItem('adm_secret_v1', adminSecret);
 let cachedConfig = null;
 let cachedUsers = [];
+let pollTimer = null;
+let idleCheckTimer = null;
+let lastReminderSoundAt = 0;
+let isPinLocked = false;
+let lastActiveAt = Number(localStorage.getItem('adm_last_active_v1')) || Date.now();
+let currentLockPin = localStorage.getItem('adm_pin_v1') || '1122';
 
 function toast(m){
   const t = $('toast'); t.textContent = m; t.style.display = 'block';
-  clearTimeout(t._t); t._t = setTimeout(() => t.style.display = 'none', 3200);
+  clearTimeout(t._t); t._t = setTimeout(() => t.style.display = 'none', 3600);
 }
 function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function playAdminAlertChime(){
+  try{
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    const now = ctx.currentTime;
+    [587.33, 880, 1174.66].forEach((freq, idx) => {
+      const osc = ctx.createOscillator(), gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+      gain.gain.setValueAtTime(0.001, now + idx * 0.12);
+      gain.gain.exponentialRampToValueAtTime(0.14, now + idx * 0.12 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.12 + 0.25);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(now + idx * 0.12); osc.stop(now + idx * 0.12 + 0.26);
+    });
+  } catch {}
+}
 
 async function api(path, opts = {}){
   const headers = {'Content-Type':'application/json', ...(opts.headers||{}), 'X-Admin-Secret': adminSecret};
@@ -285,13 +396,71 @@ async function api(path, opts = {}){
   return j;
 }
 
+function openAdminPanel(panelName){
+  document.querySelectorAll('#admNav button').forEach(x => x.classList.toggle('active', x.dataset.panel === panelName));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  const el = $('panel-' + panelName);
+  if (el) el.classList.add('active');
+}
+
 document.querySelectorAll('#admNav button').forEach(b => {
-  b.onclick = () => {
-    document.querySelectorAll('#admNav button').forEach(x => x.classList.toggle('active', x === b));
-    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-    $('panel-' + b.dataset.panel).classList.add('active');
-  };
+  b.onclick = () => openAdminPanel(b.dataset.panel);
 });
+if ($('jumpToProofsBtn')) $('jumpToProofsBtn').onclick = () => openAdminPanel('proofs');
+
+function touchActivity(){
+  if (!adminSecret || isPinLocked) return;
+  lastActiveAt = Date.now();
+  localStorage.setItem('adm_last_active_v1', String(lastActiveAt));
+}
+['pointerdown','mousemove','keydown','touchstart','scroll'].forEach(ev => {
+  window.addEventListener(ev, touchActivity, { passive: true });
+});
+
+function showPinLock(reasonMsg){
+  if (!adminSecret) return;
+  isPinLocked = true;
+  localStorage.setItem('adm_locked_v1', '1');
+  $('pinInput').value = '';
+  $('pinMsg').textContent = reasonMsg || '';
+  $('pinLockOverlay').classList.add('open');
+  setTimeout(() => $('pinInput').focus(), 60);
+}
+function unlockPin(){
+  const entered = ($('pinInput').value || '').trim();
+  const expected = (cachedConfig?.adminLockPin || currentLockPin || '1122').trim();
+  if (entered !== expected){
+    $('pinMsg').textContent = 'गलत PIN! (डिफल्ट: 1122)';
+    $('pinInput').value = '';
+    $('pinInput').focus();
+    return;
+  }
+  isPinLocked = false;
+  localStorage.removeItem('adm_locked_v1');
+  lastActiveAt = Date.now();
+  localStorage.setItem('adm_last_active_v1', String(lastActiveAt));
+  $('pinLockOverlay').classList.remove('open');
+  toast('🔓 Admin Panel खुल्यो');
+}
+$('pinUnlockBtn').onclick = unlockPin;
+$('pinInput').addEventListener('keydown', e => { if (e.key === 'Enter') unlockPin(); });
+
+function fullLogout(){
+  clearInterval(pollTimer); pollTimer = null;
+  clearInterval(idleCheckTimer); idleCheckTimer = null;
+  localStorage.removeItem('adm_secret_v1');
+  localStorage.removeItem('adm_locked_v1');
+  localStorage.removeItem('adm_last_active_v1');
+  sessionStorage.removeItem('adm');
+  adminSecret = ''; isPinLocked = false; $('secret').value = '';
+  $('pinLockOverlay').classList.remove('open');
+  $('adminApp').style.display = 'none'; $('admNav').style.display = 'none';
+  $('lockBtn').style.display = 'none'; $('fullLogoutBtn').style.display = 'none';
+  $('loginCard').style.display = 'block';
+  $('loginMsg').textContent = 'Logged out.';
+}
+$('pinLogoutBtn').onclick = fullLogout;
+$('fullLogoutBtn').onclick = fullLogout;
 
 async function unlock(){
   const val = ($('secret').value || adminSecret).trim();
@@ -307,25 +476,43 @@ async function unlock(){
     return;
   }
   adminSecret = val;
+  localStorage.setItem('adm_secret_v1', val);
   sessionStorage.setItem('adm', val);
   $('loginCard').style.display = 'none';
   $('adminApp').style.display = 'block';
   $('admNav').style.display = 'flex';
   $('lockBtn').style.display = 'inline-flex';
+  $('fullLogoutBtn').style.display = 'inline-flex';
+
+  const now = Date.now();
+  const prevActive = Number(localStorage.getItem('adm_last_active_v1')) || now;
+  const wasLocked = localStorage.getItem('adm_locked_v1') === '1';
+  if (wasLocked || (now - prevActive) >= IDLE_LOCK_MS) {
+    showPinLock('५ मिनेट निष्क्रिय भएकोले स्क्रिन लक लाग्यो।');
+  } else {
+    lastActiveAt = now;
+    localStorage.setItem('adm_last_active_v1', String(now));
+  }
+
   loadAll();
+  clearInterval(pollTimer);
+  pollTimer = setInterval(() => {
+    if (adminSecret) { loadProofs(true); loadInbox(); }
+  }, 60000);
+  clearInterval(idleCheckTimer);
+  idleCheckTimer = setInterval(() => {
+    if (adminSecret && !isPinLocked && (Date.now() - lastActiveAt) >= IDLE_LOCK_MS) {
+      showPinLock('५ मिनेट गतिविधि नभएकोले स्वचालित लक लाग्यो।');
+    }
+  }, 15000);
 }
 
 $('loginBtn').onclick = unlock;
 $('secret').addEventListener('keydown', e => { if (e.key === 'Enter') unlock(); });
-$('lockBtn').onclick = () => {
-  sessionStorage.removeItem('adm'); adminSecret = ''; $('secret').value = '';
-  $('adminApp').style.display = 'none'; $('admNav').style.display = 'none';
-  $('lockBtn').style.display = 'none'; $('loginCard').style.display = 'block';
-  $('loginMsg').textContent = 'Locked.';
-};
+$('lockBtn').onclick = () => showPinLock('स्क्रिन म्यानुअल रूपमा लक गरियो।');
 
 async function loadAll(){
-  await Promise.all([loadOverview(), loadConfig(), loadAdminMarket(), loadProofs(), loadInbox()]);
+  await Promise.all([loadOverview(), loadConfig(), loadAdminMarket(), loadProofs(false), loadInbox(), refreshPushStatus()]);
 }
 
 async function loadOverview(){
@@ -359,9 +546,14 @@ async function loadSingleUser(uname){
   const j = await api('/api/user/' + encodeURIComponent(u) + '/admin-user');
   if (!j.ok) return;
   const usr = j.user;
+  const silv = usr.silverCoins !== undefined ? usr.silverCoins : (usr.coins || 0);
+  const gold = usr.goldCoins || 0;
+  const baseD = cachedConfig?.dailyBaseFunTokens ?? 30;
+  const perLv = cachedConfig?.dailyPerLevelFunTokens ?? 20;
+  const dailyRate = baseD + (Math.max(1, usr.level || 1) - 1) * perLv;
   $('mgrUserSummary').innerHTML = `
     <div style="font-weight:800;font-size:15px">${esc(usr.displayName)} <span class="sub">@${esc(usr.username)}</span> ${usr.banned ? '<span style="color:#f87171">[BANNED]</span>' : ''}</div>
-    <div class="sub num" style="margin-top:4px">Fun: <b>${usr.funTokens||0}</b> (+${usr.dailyFunTokens||0} daily) · Coins: <b>${usr.coins||0}</b> · Lv <b>${usr.level||1}</b> · Wins: <b>${usr.wins||0}</b></div>
+    <div class="sub num" style="margin-top:4px">🎮 Fun: <b>${usr.funTokens||0}</b> (+${usr.dailyFunTokens||0} today · rate ${dailyRate}/day) · 🥈 Silver: <b>${silv}</b> · 🥇 Gold: <b>${gold}</b> · Lv <b>${usr.level||1}</b> · Wins: <b>${usr.wins||0}</b></div>
     <div class="sub num" style="margin-top:4px">Voice: <b>${usr.voiceActive ? 'Active' : 'Off'}</b> · Friends: <b>${(usr.friends||[]).length}</b> · Skins: <b>${(usr.ownedSkins||[]).join(', ')}</b></div>
   `;
 }
@@ -373,13 +565,18 @@ $('applyAdjustBtn').onclick = async () => {
   const body = {
     secret: adminSecret,
     addFun: Number($('adjFun').value) || 0,
-    addCoins: Number($('adjCoins').value) || 0,
+    addSilver: Number($('adjSilver').value) || 0,
+    addGold: Number($('adjGold').value) || 0,
     voiceDays: Number($('adjVoiceDays').value) || 0
   };
   const lv = Number($('adjLevel').value);
   if (lv >= 1) body.setLevel = lv;
   const j = await api('/api/user/' + encodeURIComponent(u) + '/admin-adjust', { method:'POST', body:JSON.stringify(body) });
-  if (j.ok){ toast('Player updated!'); $('adjFun').value = 0; $('adjCoins').value = 0; $('adjVoiceDays').value = 0; loadSingleUser(u); loadOverview(); }
+  if (j.ok){
+    toast('Player updated!');
+    $('adjFun').value = 0; $('adjSilver').value = 0; $('adjGold').value = 0; $('adjVoiceDays').value = 0;
+    loadSingleUser(u); loadOverview();
+  }
 };
 $('grantItemBtn').onclick = async () => {
   const u = $('mgrUserInput').value.trim().toLowerCase();
@@ -407,7 +604,14 @@ async function loadAdminMarket(){
   $('stMarketCount').textContent = list.length;
   list.forEach(L => {
     const r = document.createElement('div'); r.className = 'row';
-    r.innerHTML = `<div><b>${esc(L.emoji||'🎁')} ${esc(L.label||L.itemId)}</b><div class="sub num">${L.itemType}:${esc(L.itemId)} · ${L.priceFun||0} Fun · ${L.priceCoins||0} Coins</div></div>`;
+    const ps = L.priceSilver !== undefined ? L.priceSilver : (L.priceCoins || 0);
+    const pg = L.priceGold || 0;
+    const pf = L.priceFun || 0;
+    const priceParts = [];
+    if (pf > 0) priceParts.push(`${pf} Fun`);
+    if (ps > 0) priceParts.push(`${ps} 🥈 Silver`);
+    if (pg > 0) priceParts.push(`${pg} 🥇 Gold`);
+    r.innerHTML = `<div><b>${esc(L.emoji||'🎁')} ${esc(L.label||L.itemId)}</b><div class="sub num">${L.itemType}:${esc(L.itemId)} · ${priceParts.join(' + ') || 'Free'}</div></div>`;
     const del = document.createElement('button'); del.className = 'btn btn-danger btn-sm'; del.textContent = 'Remove';
     del.onclick = async () => {
       const res = await api('/api/shop/market-remove', { method:'POST', body:JSON.stringify({ secret: adminSecret, listingId: L.id }) });
@@ -421,9 +625,11 @@ $('refreshMktBtn').onclick = loadAdminMarket;
 
 $('mktPreset').onchange = () => {
   const val = $('mktPreset').value; if (!val) return;
-  const [type, id, label, emoji, coins] = val.split('|');
+  const [type, id, label, emoji, silv, gold] = val.split('|');
   $('mktType').value = type; $('mktItemId').value = id; $('mktLabel').value = label; $('mktEmoji').value = emoji || '🎁';
-  $('mktCoins').value = coins || 0; $('mktFun').value = (Number(coins)||10) * 20;
+  $('mktSilver').value = silv || 0;
+  $('mktGold').value = gold || 0;
+  $('mktFun').value = 0;
 };
 
 $('mktAddBtn').onclick = async () => {
@@ -434,7 +640,8 @@ $('mktAddBtn').onclick = async () => {
     label: $('mktLabel').value.trim(),
     emoji: $('mktEmoji').value.trim() || '🎁',
     priceFun: Number($('mktFun').value) || 0,
-    priceCoins: Number($('mktCoins').value) || 0
+    priceSilver: Number($('mktSilver').value) || 0,
+    priceGold: Number($('mktGold').value) || 0
   };
   const j = await api('/api/shop/market-add', { method:'POST', body:JSON.stringify(payload) });
   if (j.ok){ toast('Published to Marketplace!'); loadAdminMarket(); }
@@ -446,42 +653,64 @@ async function loadConfig(){
   if (!j.ok || !j.config) return;
   cachedConfig = j.config;
   $('cfgStarterFun').value = cachedConfig.starterFunTokens ?? 100;
-  $('cfgDailyFun').value = cachedConfig.dailyLoginFunTokens ?? 50;
+  $('cfgDailyBase').value = cachedConfig.dailyBaseFunTokens ?? cachedConfig.dailyLoginFunTokens ?? 30;
+  $('cfgDailyPerLv').value = cachedConfig.dailyPerLevelFunTokens ?? 20;
+  $('cfgLvGold').value = cachedConfig.levelUpGoldCost ?? 10;
   $('cfgRefFun').value = cachedConfig.referralRewardFunTokens ?? 100;
   $('cfgRefDays').value = Math.round((cachedConfig.referralRewardVoiceMs ?? 864000000) / 86400000);
   $('cfgStakes').value = (cachedConfig.stakes || [0,10,20,50,100]).join(',');
-  $('cfgPayEnabled').value = cachedConfig.paymentEnabled ? 'true' : 'false';
+  $('cfgGoldEnabled').value = cachedConfig.goldRechargeEnabled !== false ? 'true' : 'false';
+  $('cfgPayEnabled').value = cachedConfig.paymentEnabled !== false ? 'true' : 'false';
   const esewa = (cachedConfig.paymentMethods || []).find(m => m.id === 'esewa');
   const khalti = (cachedConfig.paymentMethods || []).find(m => m.id === 'khalti');
+  const bank = (cachedConfig.paymentMethods || []).find(m => m.id === 'bank');
   $('cfgEsewa').value = esewa?.detail || '';
+  $('cfgEsewaQr').value = esewa?.qrUrl || '';
   $('cfgKhalti').value = khalti?.detail || '';
+  $('cfgKhaltiQr').value = khalti?.qrUrl || '';
+  $('cfgBank').value = bank?.detail || '';
+  $('cfgBankQr').value = bank?.qrUrl || '';
+  $('cfgNotifyEmail').value = cachedConfig.adminNotifyEmail || 'kgranshi@gmail.com';
+  $('cfgLockPin').value = cachedConfig.adminLockPin || '1122';
+  currentLockPin = cachedConfig.adminLockPin || '1122';
+  localStorage.setItem('adm_pin_v1', currentLockPin);
   $('cfgJson').value = JSON.stringify(cachedConfig, null, 2);
 
   // Populate marketplace presets from shop items
   const ps = $('mktPreset');
   ps.innerHTML = '<option value="">-- Choose Shop Item Preset --</option>';
-  (cachedConfig.skins || []).forEach(s => { if (s.id !== 'default') ps.innerHTML += `<option value="skin|${s.id}|${esc(s.label)}|🎨|${s.priceCoins||0}">Skin: ${esc(s.label)}</option>`; });
-  (cachedConfig.avatars || []).forEach(s => { if (s.id !== 'default') ps.innerHTML += `<option value="avatar|${s.id}|${esc(s.label)}|👑|${s.priceCoins||0}">Avatar: ${esc(s.label)}</option>`; });
-  (cachedConfig.mics || []).forEach(s => { if (s.id !== 'mic_default') ps.innerHTML += `<option value="mic|${s.id}|${esc(s.label)}|${s.emoji||'🎤'}|${s.priceCoins||0}">Mic: ${esc(s.label)}</option>`; });
-  (cachedConfig.roomItems || []).forEach(s => { ps.innerHTML += `<option value="room|${s.id}|${esc(s.label)}|${s.emoji||'🪔'}|${s.priceCoins||0}">Decor: ${esc(s.label)}</option>`; });
+  (cachedConfig.skins || []).forEach(s => { if (s.id !== 'default') ps.innerHTML += `<option value="skin|${s.id}|${esc(s.label)}|🎨|${s.priceSilver??s.priceCoins??0}|${s.priceGold??0}">Skin: ${esc(s.label)}</option>`; });
+  (cachedConfig.avatars || []).forEach(s => { if (s.id !== 'default') ps.innerHTML += `<option value="avatar|${s.id}|${esc(s.label)}|👑|${s.priceSilver??s.priceCoins??0}|${s.priceGold??0}">Avatar: ${esc(s.label)}</option>`; });
+  (cachedConfig.mics || []).forEach(s => { if (s.id !== 'mic_default') ps.innerHTML += `<option value="mic|${s.id}|${esc(s.label)}|${s.emoji||'🎤'}|${s.priceSilver??s.priceCoins??0}|${s.priceGold??0}">Mic: ${esc(s.label)}</option>`; });
+  (cachedConfig.roomItems || []).forEach(s => { ps.innerHTML += `<option value="room|${s.id}|${esc(s.label)}|${s.emoji||'🪔'}|${s.priceSilver??s.priceCoins??0}|${s.priceGold??0}">Decor: ${esc(s.label)}</option>`; });
 }
 
 $('saveVisualCfgBtn').onclick = async () => {
   const stakes = $('cfgStakes').value.split(',').map(x => Number(x.trim())).filter(n => Number.isFinite(n) && n >= 0);
+  const dailyBase = Math.max(0, Number($('cfgDailyBase').value) || 30);
+  const newPin = ($('cfgLockPin').value || '1122').trim() || '1122';
+  const newEmail = ($('cfgNotifyEmail').value || 'kgranshi@gmail.com').trim();
   const config = {
-    starterFunTokens: Number($('cfgStarterFun').value) || 100,
-    dailyLoginFunTokens: Number($('cfgDailyFun').value) || 50,
-    referralRewardFunTokens: Number($('cfgRefFun').value) || 100,
-    referralRewardVoiceMs: (Number($('cfgRefDays').value) || 0) * 86400000,
+    starterFunTokens: Math.max(0, Number($('cfgStarterFun').value) || 100),
+    dailyBaseFunTokens: dailyBase,
+    dailyLoginFunTokens: dailyBase,
+    dailyPerLevelFunTokens: Math.max(0, Number($('cfgDailyPerLv').value) || 20),
+    levelUpGoldCost: Math.max(1, Number($('cfgLvGold').value) || 10),
+    referralRewardFunTokens: Math.max(0, Number($('cfgRefFun').value) || 100),
+    referralRewardVoiceMs: Math.max(0, Number($('cfgRefDays').value) || 0) * 86400000,
     stakes: stakes.length ? stakes : [0,10,20,50,100],
+    goldRechargeEnabled: $('cfgGoldEnabled').value === 'true',
     paymentEnabled: $('cfgPayEnabled').value === 'true',
+    adminNotifyEmail: newEmail,
+    adminLockPin: newPin,
     paymentMethods: [
-      { id:'esewa', label:'eSewa', detail: $('cfgEsewa').value.trim(), qrUrl:'' },
-      { id:'khalti', label:'Khalti', detail: $('cfgKhalti').value.trim(), qrUrl:'' }
+      { id:'esewa', label:'eSewa', detail: $('cfgEsewa').value.trim(), qrUrl: $('cfgEsewaQr').value.trim() },
+      { id:'khalti', label:'Khalti', detail: $('cfgKhalti').value.trim(), qrUrl: $('cfgKhaltiQr').value.trim() },
+      { id:'bank', label:'Bank / FonePay QR', detail: $('cfgBank').value.trim(), qrUrl: $('cfgBankQr').value.trim() }
     ]
   };
   const j = await api('/api/shop/set', { method:'POST', body:JSON.stringify({ secret: adminSecret, config }) });
-  if (j.ok){ toast('Settings saved!'); loadConfig(); }
+  if (j.ok){ currentLockPin = newPin; localStorage.setItem('adm_pin_v1', newPin); toast('Settings saved!'); loadConfig(); refreshPushStatus(); }
 };
 $('saveRawCfgBtn').onclick = async () => {
   let config; try { config = JSON.parse($('cfgJson').value); } catch { return toast('Invalid JSON'); }
@@ -489,33 +718,80 @@ $('saveRawCfgBtn').onclick = async () => {
   if (j.ok){ toast('Full JSON config saved!'); loadConfig(); }
 };
 
-// PROOFS & INBOX
-async function loadProofs(){
+// PROOFS, GOLD ORDERS & 5-MIN REMINDERS
+async function loadProofs(isBackgroundPoll = false){
   const j = await api('/api/shop/proofs');
+  if (!j.ok) return;
   const box = $('proofsList'); box.innerHTML = '';
   const list = j.proofs || [];
-  $('stPendingProofs').textContent = list.filter(x => x.status === 'pending').length;
+  const pendingCount = j.pendingCount ?? list.filter(x => x.status === 'pending_admin' || x.status === 'pending').length;
+  $('stPendingProofs').textContent = pendingCount;
+
+  const banner = $('pendingAlertBanner');
+  if (pendingCount > 0) {
+    banner.style.display = 'flex';
+    $('pendingAlertText').textContent = `${pendingCount} वटा Gold Recharge रसिद एडमिन स्वीकृति पर्खिरहेको छ (प्रत्येक ५ मिनेटमा सम्झना गराइन्छ)।`;
+    const now = Date.now();
+    if (j.needsReminder || (isBackgroundPoll && now - lastReminderSoundAt >= 300000) || (!isBackgroundPoll && now - lastReminderSoundAt >= 300000)) {
+      lastReminderSoundAt = now;
+      playAdminAlertChime();
+      if (isBackgroundPoll) toast(`🔔 ${pendingCount} पेन्डिङ Gold अर्डर जाँच गर्न बाँकी छ!`);
+    }
+  } else {
+    banner.style.display = 'none';
+  }
+
   list.forEach(p => {
-    const d = document.createElement('div'); d.className = 'surface'; d.style.background = '#0b1120'; d.style.padding = '12px';
-    d.innerHTML = `<div><b>@${esc(p.username)}</b> · ${esc(p.packageType)}/${esc(p.packageId)} · <span class="num">Rs.${p.amount}</span> · <b>${esc(p.status)}</b></div><div class="sub">${esc(p.note||'')}</div>`;
+    const isPending = p.status === 'pending_admin' || p.status === 'pending';
+    const badgeCls = isPending ? 'badge-pending' : (p.status === 'approved' ? 'badge-approved' : 'badge-rejected');
+    const titleLabel = p.kind === 'gold_order'
+      ? `🥇 ${p.goldAmount || 0} Gold (Rs.${p.amount || 0}) · ${esc(p.methodLabel || p.methodId || '')}`
+      : `${esc(p.packageType)}/${esc(p.packageId)} · Rs.${p.amount || 0}`;
+    const d = document.createElement('div');
+    d.className = 'surface';
+    d.style.background = '#0b1120';
+    d.style.padding = '12px';
+    d.style.borderColor = isPending ? 'rgba(245,158,11,0.55)' : 'var(--line)';
+
+    let aiHtml = '';
+    if (p.aiCheck) {
+      aiHtml = `<div class="sub num" style="margin-top:4px;color:#cbd5e1">🤖 AI: Code=${p.aiCheck.codeFound ? 'YES' : 'NO'} · Amount=${p.aiCheck.amountMatches ? 'OK' : 'Check'} · Edited/AI=${p.aiCheck.appearsEditedOrAI ? 'YES ⚠️' : 'Clean'}${p.aiCheck.detectedRemarks ? ' · Remarks: ' + esc(p.aiCheck.detectedRemarks) : ''}</div>`;
+    }
+
+    d.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+        <div><b>@${esc(p.username)}</b> · ${titleLabel}</div>
+        <span class="badge ${badgeCls}">${esc(p.status)}</span>
+      </div>
+      ${p.remarkCode ? `<div class="sub num" style="margin-top:4px;color:#fbbf24">Remark Code: <b>${esc(p.remarkCode)}</b></div>` : ''}
+      ${p.statusReason ? `<div class="sub" style="margin-top:4px;color:#e2e8f0">${esc(p.statusReason)}</div>` : ''}
+      ${p.note ? `<div class="sub" style="margin-top:2px">Note: ${esc(p.note)}</div>` : ''}
+      ${aiHtml}
+    `;
     if (p.proofData && p.proofMime && p.proofMime.startsWith('image/')){
       const img = document.createElement('img'); img.className = 'proof-img';
       img.src = `data:${p.proofMime};base64,${p.proofData}`;
       d.appendChild(img);
     }
-    if (p.status === 'pending'){
+    if (isPending){
       const row = document.createElement('div'); row.style.display = 'flex'; row.style.gap = '8px'; row.style.marginTop = '10px';
-      const app = document.createElement('button'); app.className = 'btn btn-primary btn-sm'; app.textContent = 'Approve';
-      app.onclick = async () => { const r = await api('/api/shop/proof-action', {method:'POST', body:JSON.stringify({secret:adminSecret, proofId:p.id, action:'approve'})}); if (r.ok) loadProofs(); };
+      const app = document.createElement('button'); app.className = 'btn btn-primary btn-sm'; app.textContent = 'Approve & Credit';
+      app.onclick = async () => {
+        const r = await api('/api/shop/proof-action', {method:'POST', body:JSON.stringify({secret:adminSecret, proofId:p.id, action:'approve'})});
+        if (r.ok) { toast('Approved & credited!'); loadProofs(false); loadOverview(); }
+      };
       const rej = document.createElement('button'); rej.className = 'btn btn-danger btn-sm'; rej.textContent = 'Reject';
-      rej.onclick = async () => { const r = await api('/api/shop/proof-action', {method:'POST', body:JSON.stringify({secret:adminSecret, proofId:p.id, action:'reject'})}); if (r.ok) loadProofs(); };
+      rej.onclick = async () => {
+        const r = await api('/api/shop/proof-action', {method:'POST', body:JSON.stringify({secret:adminSecret, proofId:p.id, action:'reject'})});
+        if (r.ok) { toast('Order rejected'); loadProofs(false); }
+      };
       row.append(app, rej); d.appendChild(row);
     }
     box.appendChild(d);
   });
-  if (!list.length) box.innerHTML = '<p class="sub">No payment proofs submitted yet.</p>';
+  if (!list.length) box.innerHTML = '<p class="sub">No payment proofs or orders submitted yet.</p>';
 }
-$('refreshProofsBtn').onclick = loadProofs;
+$('refreshProofsBtn').onclick = () => loadProofs(false);
 
 async function loadInbox(){
   const j = await api('/api/lobby/admin-inbox');
@@ -528,6 +804,85 @@ async function loadInbox(){
   if (!box.children.length) box.innerHTML = '<p class="sub">Inbox is empty.</p>';
 }
 $('refreshInboxBtn').onclick = loadInbox;
+
+// ===================== PWA INSTALL + WEB PUSH SUBSCRIPTION + TEST ALERT =====================
+function urlBase64ToUint8Array(base64String){
+  const pad = '='.repeat((4 - base64String.length % 4) % 4);
+  const b64 = (base64String + pad).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(b64);
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+
+async function refreshPushStatus(){
+  const j = await api('/api/shop/push-public-key');
+  if (!j.ok) return;
+  let browserState = 'ब्राउजरले Push समर्थन गर्दैन';
+  if ('Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window) {
+    if (Notification.permission === 'denied') browserState = 'Browser Permission: Denied ❌';
+    else {
+      const reg = await navigator.serviceWorker.getRegistration('/').catch(() => null);
+      const sub = reg ? await reg.pushManager.getSubscription().catch(() => null) : null;
+      browserState = sub ? 'यो डिभाइस: Push सक्रिय ✅' : 'यो डिभाइस: अन गर्न बाँकी';
+    }
+  }
+  const emailInfo = j.emailConfigured ? `Email (${j.adminNotifyEmail}): सक्रिय ✅` : `Email (${j.adminNotifyEmail}): Key आवश्यक`;
+  $('pushStatusText').textContent = `${browserState} · दर्ता डिभाइस: ${j.subscriptionCount || 0} · ${emailInfo}`;
+}
+
+$('enablePushBtn').onclick = async () => {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+    return toast('यो ब्राउजरमा Web Push उपलब्ध छैन (Chrome/Android प्रयोग गर्नुहोस्)');
+  }
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') return toast('Notification अनुमति Allow गर्नुहोस्!');
+  const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+  await navigator.serviceWorker.ready;
+  const keyRes = await api('/api/shop/push-public-key');
+  if (!keyRes.ok || !keyRes.publicKey) return toast('VAPID Key प्राप्त गर्न सकिएन');
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) {
+    sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(keyRes.publicKey)
+    });
+  }
+  const saveRes = await api('/api/shop/push-subscribe', {
+    method: 'POST',
+    body: JSON.stringify({ secret: adminSecret, subscription: sub.toJSON() })
+  });
+  if (saveRes.ok) {
+    toast('🔔 मोबाइल Web Push सफलतापूर्वक सक्रिय भयो!');
+    refreshPushStatus();
+  }
+};
+
+$('testAlertBtn').onclick = async () => {
+  const j = await api('/api/shop/test-alert', { method: 'POST', body: JSON.stringify({ secret: adminSecret }) });
+  if (j.ok) {
+    const pushPart = `Push पठाइयो: ${j.pushSent || 0}/${j.totalSubs || 0}`;
+    const emailPart = j.emailRes?.ok ? 'Email पठाइयो ✅' : (j.emailRes?.configured ? 'Email असफल' : 'Email पठाउन RESEND_API_KEY/BREVO_API_KEY चाहिन्छ');
+    toast(`${pushPart} · ${emailPart}`);
+    refreshPushStatus();
+  }
+};
+
+(function initAdminPWA(){
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+  let deferredAdm = null;
+  const btn = $('pwaInstallAdmBtn');
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault(); deferredAdm = e;
+    if (btn) btn.style.display = 'inline-flex';
+  });
+  if (btn) btn.onclick = async () => {
+    if (!deferredAdm) return;
+    deferredAdm.prompt();
+    await deferredAdm.userChoice.catch(() => null);
+    deferredAdm = null; btn.style.display = 'none';
+  };
+})();
 
 if (adminSecret) unlock();
 </script>

@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { WebSocketServer } from 'ws';
+import { GoogleGenAI, Type } from '@google/genai';
 
 // Shim Cloudflare Response(null, { status: 101, webSocket }) before importing worker.js
 const OriginalResponse = globalThis.Response;
@@ -111,6 +112,8 @@ globalThis.WebSocketPair = class WebSocketPair {
 class InMemoryStorage {
   constructor() {
     this.map = new Map();
+    this._alarmTimer = null;
+    this._onAlarm = null;
   }
   async get(key) {
     if (!this.map.has(key)) return undefined;
@@ -121,6 +124,23 @@ class InMemoryStorage {
   }
   async delete(key) {
     return this.map.delete(key);
+  }
+  async setAlarm(scheduledTime) {
+    const ms = Math.max(100, (scheduledTime instanceof Date ? scheduledTime.getTime() : Number(scheduledTime)) - Date.now());
+    if (this._alarmTimer) clearTimeout(this._alarmTimer);
+    this._alarmTimer = setTimeout(() => {
+      this._alarmTimer = null;
+      if (typeof this._onAlarm === 'function') {
+        Promise.resolve(this._onAlarm()).catch((e) => console.error('DO alarm error:', e));
+      }
+    }, Math.min(ms, 2147483647));
+    if (this._alarmTimer.unref) this._alarmTimer.unref();
+  }
+  async deleteAlarm() {
+    if (this._alarmTimer) {
+      clearTimeout(this._alarmTimer);
+      this._alarmTimer = null;
+    }
   }
 }
 
@@ -147,6 +167,7 @@ function createNamespace(DOClass, getEnv) {
           }
         };
         const instance = new DOClass(ctx, getEnv());
+        storage._onAlarm = () => (typeof instance.alarm === 'function' ? instance.alarm() : null);
         wrapper = { instance, ctx, sockets };
         instances.set(key, wrapper);
       }
@@ -173,8 +194,102 @@ const adminSecret =
     ? process.env.ADMIN_SECRET
     : crypto.randomBytes(24).toString('hex');
 
+const geminiClient = process.env.GEMINI_API_KEY
+  ? new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY,
+      httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
+    })
+  : null;
+
+async function verifyPaymentProof({ imageBase64, mimeType, remarkCode, expectedAmount, methodLabel }) {
+  if (!geminiClient) {
+    return {
+      ok: false,
+      unavailable: true,
+      codeFound: false,
+      appearsEditedOrAI: false,
+      reason: 'स्वचालित AI प्रमाण जाँचको लागि GEMINI_API_KEY सेट नभएकोले एडमिन स्वीकृति पेन्डिङमा राखियो।'
+    };
+  }
+  try {
+    const prompt = [
+      'You are verifying a Nepali digital wallet / bank payment screenshot (eSewa, Khalti, Fonepay, IME Pay, or Bank Transfer).',
+      `Expected Remark / Reference Code: "${remarkCode}"`,
+      `Expected Payment Method: "${methodLabel || 'Wallet/Bank'}"`,
+      `Expected Amount: Rs. ${expectedAmount}`,
+      'Carefully inspect the image and check:',
+      '1. Does the exact remark/reference code appear in the Remarks/Note/Reference/Details section of the screenshot? Ignore minor case differences or spacing around hyphens, but the alphanumeric code itself must genuinely match.',
+      '2. Does the screenshot look authentic, or does it show signs of editing, pasted/overlaid text, mismatched font/blurring around the code or amount, or AI-generated artifacts?',
+      '3. Read what remarks text and payment amount you see.',
+      'Return strict JSON matching the schema. Explain the reason briefly in Nepali.'
+    ].join('\n');
+
+    const response = await geminiClient.models.generateContent({
+      model: 'gemini-4-hydrogen',
+      contents: {
+        parts: [
+          { inlineData: { mimeType: mimeType || 'image/jpeg', data: imageBase64 } },
+          { text: prompt }
+        ]
+      },
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            codeFound: { type: Type.BOOLEAN, description: 'True only if the expected remarkCode is clearly visible in the receipt.' },
+            detectedRemarks: { type: Type.STRING, description: 'Exact remarks/reference text read from screenshot.' },
+            amountMatches: { type: Type.BOOLEAN, description: 'True if payment amount matches or exceeds expected NPR amount.' },
+            appearsEditedOrAI: { type: Type.BOOLEAN, description: 'True if receipt shows signs of tampering, photoshopped text, or AI generation.' },
+            reasonNe: { type: Type.STRING, description: 'Brief clear explanation in Nepali.' }
+          },
+          required: ['codeFound', 'appearsEditedOrAI', 'reasonNe']
+        }
+      }
+    });
+
+    const parsed = JSON.parse((response.text || '{}').trim());
+    const codeFound = !!parsed.codeFound;
+    const appearsEditedOrAI = !!parsed.appearsEditedOrAI;
+    const amountMatches = parsed.amountMatches !== false;
+    const verified = codeFound && !appearsEditedOrAI && amountMatches;
+    let reason = String(parsed.reasonNe || '').trim();
+    if (!reason) {
+      if (appearsEditedOrAI) reason = 'रसिद फोटोमा एडिट वा AI बनावटको शंका देखिएकोले एडमिन जाँच पेन्डिङमा छ।';
+      else if (!codeFound) reason = `अपलोड गरिएको रसिदको रिमार्क्समा कोड (${remarkCode}) भेटिएन।`;
+      else if (!amountMatches) reason = `रसिदमा रकम Rs. ${expectedAmount} सँग मेल खाएन।`;
+      else reason = 'स्वचालित जाँच सफल भयो।';
+    }
+    return {
+      ok: true,
+      verified,
+      codeFound,
+      appearsEditedOrAI,
+      amountMatches,
+      detectedRemarks: String(parsed.detectedRemarks || ''),
+      reason
+    };
+  } catch (err) {
+    console.error('Gemini proof verification error:', err?.message || err);
+    return {
+      ok: false,
+      unavailable: true,
+      codeFound: false,
+      appearsEditedOrAI: false,
+      reason: 'स्वचालित AI जाँच सेवामा अस्थायी समस्या आएकोले एडमिन स्वीकृति पेन्डिङमा राखियो।'
+    };
+  }
+}
+
 const env = {
   ADMIN_SECRET: adminSecret,
+  RESEND_API_KEY: process.env.RESEND_API_KEY || '',
+  BREVO_API_KEY: process.env.BREVO_API_KEY || '',
+  EMAIL_FROM: process.env.EMAIL_FROM || '',
+  ADMIN_ALERT_WEBHOOK_URL: process.env.ADMIN_ALERT_WEBHOOK_URL || '',
+  VAPID_PUBLIC_KEY: process.env.VAPID_PUBLIC_KEY || '',
+  VAPID_PRIVATE_JWK: process.env.VAPID_PRIVATE_JWK || '',
+  verifyPaymentProof,
   ASSETS: {
     async fetch(request) {
       const url = new URL(request.url);
@@ -187,6 +302,7 @@ const env = {
       try {
         const data = await fs.readFile(resolved);
         const ext = path.extname(resolved).toLowerCase();
+        const base = path.basename(resolved).toLowerCase();
         const mime =
           ext === '.html'
             ? 'text/html; charset=utf-8'
@@ -194,24 +310,30 @@ const env = {
               ? 'application/javascript; charset=utf-8'
               : ext === '.css'
                 ? 'text/css; charset=utf-8'
-                : ext === '.json'
-                  ? 'application/json; charset=utf-8'
-                  : ext === '.png'
-                    ? 'image/png'
-                    : ext === '.jpg' || ext === '.jpeg'
-                      ? 'image/jpeg'
-                      : ext === '.webp'
-                        ? 'image/webp'
-                        : ext === '.svg'
-                          ? 'image/svg+xml'
-                          : 'application/octet-stream';
+                : base === 'manifest.json' || base === 'admin-manifest.json'
+                  ? 'application/manifest+json; charset=utf-8'
+                  : ext === '.json'
+                    ? 'application/json; charset=utf-8'
+                    : ext === '.png'
+                      ? 'image/png'
+                      : ext === '.jpg' || ext === '.jpeg'
+                        ? 'image/jpeg'
+                        : ext === '.webp'
+                          ? 'image/webp'
+                          : ext === '.svg'
+                            ? 'image/svg+xml'
+                            : 'application/octet-stream';
+        const extraHeaders = base === 'sw.js'
+          ? { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Service-Worker-Allowed': '/' }
+          : {};
         return new Response(data, {
           status: 200,
           headers: {
             'Content-Type': mime,
             'X-Content-Type-Options': 'nosniff',
             'Referrer-Policy': 'strict-origin-when-cross-origin',
-            'Permissions-Policy': 'camera=(), microphone=(self), geolocation=()'
+            'Permissions-Policy': 'camera=(), microphone=(self), geolocation=()',
+            ...extraHeaders
           }
         });
       } catch {

@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#0b1326">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="नेपाली लुडो">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="/pwa-192x192.png">
 <title>नेपाली लुडो — Nepali Ludo Royal</title>
 <meta name="description" content="Play authentic Nepali-style Ludo against smart AI bots, Pass & Play with friends locally, or compete live online with voice chat, friends list, and custom Durbar themes.">
 <meta property="og:title" content="नेपाली लुडो — Nepali Ludo Royal">
@@ -580,6 +587,10 @@ input,select{
 .podium-row.winner{border-color:var(--gold);background:rgba(229,169,60,0.12)}
 
 .toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:#1e293b;border:1px solid var(--gold);color:#fff;padding:9px 14px;border-radius:10px;font-size:12px;font-weight:700;z-index:120;display:none;max-width:90vw;text-align:center;box-shadow:0 12px 28px rgba(0,0,0,0.5)}
+.offline-pill{position:fixed;bottom:14px;left:14px;z-index:115;display:none;align-items:center;gap:6px;padding:6px 11px;border-radius:10px;background:#b45309;color:#fff;font-size:11px;font-weight:700;box-shadow:0 8px 20px rgba(0,0,0,0.45)}
+.offline-pill.show{display:inline-flex}
+.pwa-install-btn{background:linear-gradient(135deg,#059669,#10b981);color:#042014;border:0;border-radius:9px;padding:7px 11px;font-size:12px;font-weight:800;cursor:pointer;white-space:nowrap;min-height:36px;display:none;align-items:center;gap:5px}
+.pwa-install-btn.show{display:inline-flex}
 @media(prefers-reduced-motion:reduce){.piece.pick,.dice-scene.tossing,.emote-bubble{animation:none}.dice-cube{transition:none}}
 </style>
 </head>
@@ -599,6 +610,7 @@ input,select{
         </button>
       </div>
       <div class="top-actions">
+        <button class="pwa-install-btn" id="pwaInstallTopBtn" type="button">📲 App इन्स्टल</button>
         <span class="acct-summary num" id="acctSummary"></span>
         <button class="cta-sm" id="authTopBtn" type="button">लगइन</button>
       </div>
@@ -670,9 +682,10 @@ input,select{
         </div>
       </div>
     </div>
-    <div class="drawer-foot">
+    <div class="drawer-foot" style="flex-wrap:wrap">
       <button class="btn btn-secondary btn-sm" id="soundBtn" type="button" style="flex:1">🔊 Sound</button>
       <button class="btn btn-secondary btn-sm" id="langBtn" type="button" style="flex:1">🌐 EN / ने</button>
+      <button class="btn btn-primary btn-sm" id="drawerInstallBtn" type="button" style="display:none;width:100%;margin-top:6px">📲 Home Screen मा App राख्नुहोस्</button>
     </div>
   </aside>
 
@@ -743,21 +756,19 @@ input,select{
 
     <!-- SHOP VIEW -->
     <section id="view-shop" class="view">
-      <div style="margin-bottom:14px">
-        <h1 style="font-size:21px" data-i18n="shopTitle">नेपाली पसल (Shop)</h1>
-        <p class="sub" data-i18n="shopSub">सिक्का (Coins) बाट बोर्ड स्किन, अवतार, माइक र कोठाका सामान किन्नुहोस्।</p>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+        <div>
+          <h1 style="font-size:21px" data-i18n="shopTitle">नेपाली पसल (Shop)</h1>
+          <p class="sub" data-i18n="shopSub">Silver र Gold Coin बाट भ्वाइस प्याक, बोर्ड स्किन, अवतार, माइक र कोठा सजावट किन्नुहोस्।</p>
+        </div>
+        <div id="shopBalancePill" class="surface num" style="padding:8px 14px;font-size:13px;font-weight:700"></div>
+      </div>
+      <div class="surface" style="margin-bottom:18px">
+        <h2 style="font-size:17px;margin-bottom:4px" data-i18n="voiceShopTitle">लाइभ भ्वाइस प्याकेज (Coin बाट तुरुन्त किन्नुहोस्)</h2>
+        <p class="sub" style="margin-bottom:10px">तपाईंको Silver वा Gold Coin ब्यालेन्स चेक गरी एपले तुरुन्तै Voice सक्रिय गर्छ।</p>
+        <div id="shopVoice"></div>
       </div>
       <div id="shopSoft"></div>
-      <div class="surface" style="margin-top:18px">
-        <h2 style="font-size:17px;margin-bottom:6px" data-i18n="voiceShopTitle">लाइभ भ्वाइस प्याकेज (Live Voice)</h2>
-        <div id="shopVoice"></div>
-        <div id="payBox" style="display:none;margin-top:14px;border-top:1px solid var(--line);padding-top:14px">
-          <div id="payDetail"></div>
-          <div class="field"><label>Note / TxID</label><input id="payNote"></div>
-          <div class="field"><label>Proof image (max 150KB)</label><input id="payProof" type="file" accept="image/*"></div>
-          <button class="btn btn-primary" id="btnSubmitPay" type="button">Submit proof</button>
-        </div>
-      </div>
     </section>
 
     <!-- BUYER-ONLY ADMIN MARKETPLACE VIEW -->
@@ -765,7 +776,7 @@ input,select{
       <div class="surface">
         <div style="margin-bottom:14px">
           <h1 style="font-size:21px" data-i18n="mktTitle">आधिकारिक बजार (Admin Market)</h1>
-          <p class="sub" data-i18n="mktSub">एडमिनले राखेका विशेष स्किन, अवतार, माइक र कोठा सजावट फन टोकन वा सिक्कामा किन्नुहोस्।</p>
+          <p class="sub" data-i18n="mktSub">एडमिनले राखेका विशेष स्किन, अवतार, माइक र कोठा सजावट फन टोकन, Silver वा Gold Coin मा किन्नुहोस्।</p>
         </div>
         <div id="marketList" class="grid-3"></div>
       </div>
@@ -780,30 +791,99 @@ input,select{
       </div>
       <div id="profileLoggedIn" style="display:none">
         <div class="grid-2">
+          <!-- WALLET, LEVEL UP, CONVERT & PLAYER EXCHANGE -->
           <div class="surface">
-            <h2 style="font-size:18px;margin-bottom:12px" data-i18n="myRoomTitle">मेरो व्यक्तिगत कोठा</h2>
+            <h2 style="font-size:18px;margin-bottom:12px" data-i18n="myRoomTitle">मेरो कोठा, ब्यालेन्स र लेबल</h2>
             <div id="roomPreview" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px;border-radius:12px;background:#0b1120;border:1px solid var(--line);margin-bottom:12px"></div>
-            <div id="profCard"></div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+            <div id="profCard" style="margin-bottom:12px"></div>
+
+            <!-- LEVEL UP BOX -->
+            <div style="padding:12px;border-radius:12px;background:#0b1120;border:1px solid rgba(229,169,60,0.35);margin-bottom:12px">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+                <div>
+                  <div style="font-weight:800;font-size:14px;color:var(--gold)" id="lvUpTitle">⬆️ लेबल बढाउनुहोस् (१० Gold Coin = +१ लेबल)</div>
+                  <div class="sub num" id="lvDailyInfo">हरेक लेबलमा दैनिक टोकन +२० ले बढ्छ (Lv1: 30, Lv2: 50, Lv3: 70)</div>
+                </div>
+                <button class="btn btn-primary btn-sm" id="btnBuyLevel" type="button">१० 🥇 → +१ लेबल</button>
+              </div>
+            </div>
+
+            <!-- CURRENCY CONVERSION -->
+            <div style="padding:12px;border-radius:12px;background:#0b1120;border:1px solid var(--line);margin-bottom:12px">
+              <div style="font-weight:700;font-size:13px;margin-bottom:8px">🔄 करेंसी साटासाट (100 Fun = 1 Silver · 100 Silver = 1 Gold)</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <button class="btn btn-secondary btn-sm" id="btnConvFunSilver" type="button">100 Fun → 1 🥈 Silver</button>
+                <button class="btn btn-secondary btn-sm" id="btnConvSilverGold" type="button">100 🥈 Silver → 1 🥇 Gold</button>
+                <button class="btn btn-secondary btn-sm" id="btnConvGoldSilver" type="button">1 🥇 Gold → 100 🥈 Silver</button>
+              </div>
+            </div>
+
+            <!-- PLAYER TO PLAYER CURRENCY EXCHANGE -->
+            <div style="padding:12px;border-radius:12px;background:#0b1120;border:1px solid var(--line);margin-bottom:12px">
+              <div style="font-weight:700;font-size:13px;margin-bottom:6px">🤝 खेलाडीबीच Token / Coin आदानप्रदान (Send / Exchange)</div>
+              <div style="display:grid;grid-template-columns:1fr 110px 90px;gap:6px">
+                <input id="txToUser" list="friendsDatalist" placeholder="साथी username">
+                <select id="txCurrency">
+                  <option value="fun">Fun Token</option>
+                  <option value="silver">🥈 Silver</option>
+                  <option value="gold">🥇 Gold</option>
+                </select>
+                <input id="txAmount" type="number" min="1" value="10" placeholder="रकम">
+              </div>
+              <datalist id="friendsDatalist"></datalist>
+              <button class="btn btn-primary btn-sm" id="btnSendCurrency" type="button" style="margin-top:8px">पठाउनुहोस् (Transfer)</button>
+            </div>
+
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
               <button class="btn btn-secondary btn-sm" id="btnShareRef" type="button" data-i18n="copyRefBtn">रेफरल लिंक कपी</button>
-              <button class="btn btn-secondary btn-sm" id="btnConvert" type="button" data-i18n="convertBtn">१०० फन → १ सिक्का</button>
               <button class="btn btn-danger btn-sm" id="btnLogout" type="button" data-i18n="logoutBtn">लगआउट</button>
             </div>
           </div>
+
+          <!-- GOLD COIN REAL-MONEY RECHARGE & ORDERS -->
           <div class="surface">
-            <h2 style="font-size:18px;margin-bottom:10px" data-i18n="editProfTitle">नाम, फोटो र सजावट</h2>
-            <div class="field"><label data-i18n="dispNameLbl">देखाउने नाम (Display Name)</label><input id="profileName" maxlength="18"></div>
-            <div class="field"><label data-i18n="photoLbl">प्रोफाइल फोटो (अधिकतम 150KB)</label><input id="profilePhoto" type="file" accept="image/png,image/jpeg,image/webp,image/gif"></div>
-            <button class="btn btn-primary btn-block" id="btnSaveProfile" type="button" data-i18n="saveProfBtn">प्रोफाइल सुरक्षित गर्नुहोस्</button>
-            <h3 style="font-size:14px;margin:14px 0 8px" data-i18n="equipTitle">स्किन र अवतार छान्नुहोस्</h3>
-            <div id="equipBox" style="display:flex;flex-wrap:wrap;gap:6px"></div>
-            <h3 style="font-size:14px;margin:14px 0 8px" data-i18n="decorTitle">कोठाका सजावट सामान</h3>
-            <div id="decorBox"></div>
-            <h3 style="font-size:14px;margin:14px 0 8px" data-i18n="giftVoiceTitle">साथीलाई भ्वाइस उपहार</h3>
-            <div style="display:flex;gap:8px">
-              <input id="giftTo" placeholder="username">
-              <input id="giftHours" type="number" value="1" step="0.5" min="0.1" style="width:84px">
-              <button class="btn btn-secondary btn-sm" id="btnGift" type="button" data-i18n="sendGiftBtn">पठाउनुहोस्</button>
+            <h2 style="font-size:18px;margin-bottom:4px">🪙 Gold Coin रिचार्ज (रियल पैसा)</h2>
+            <p class="sub" style="margin-bottom:12px">केवल Gold Coin मात्र रियल पैसामा रिचार्ज हुन्छ। पहिले अर्डर बनाएर आएको कोड कपि गरी भुक्तानीको Remarks मा लेख्नुहोला।</p>
+
+            <div class="field">
+              <label>१. Gold Coin प्याकेज छान्नुहोस्</label>
+              <div id="goldPackList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:8px"></div>
+            </div>
+            <div class="field">
+              <label>२. भुक्तानी माध्यम (Payment Method)</label>
+              <select id="rechargeMethodSel"></select>
+            </div>
+            <button class="btn btn-primary btn-block" id="btnCreateGoldOrder" type="button">३. अर्डर बनाउनुहोस् (Remarks कोड पाउनुहोस्)</button>
+
+            <!-- ACTIVE ORDER STEP (REVEALED ONLY AFTER ORDER IS CREATED) -->
+            <div id="activeOrderBox" style="display:none;margin-top:14px;padding:12px;border-radius:12px;background:#0b1120;border:1.5px solid var(--gold)"></div>
+
+            <!-- USER ORDER HISTORY & PROOF UPLOAD LIST -->
+            <h3 style="font-size:15px;margin:16px 0 8px">📋 मेरो रिचार्ज अर्डर सूची (Order List)</h3>
+            <div id="myOrdersList" style="display:flex;flex-direction:column;gap:8px"></div>
+          </div>
+        </div>
+
+        <!-- PROFILE EDIT & EQUIP -->
+        <div class="surface" style="margin-top:16px">
+          <div class="grid-2">
+            <div>
+              <h2 style="font-size:17px;margin-bottom:10px" data-i18n="editProfTitle">नाम र प्रोफाइल फोटो</h2>
+              <div class="field"><label data-i18n="dispNameLbl">देखाउने नाम (Display Name)</label><input id="profileName" maxlength="18"></div>
+              <div class="field"><label data-i18n="photoLbl">प्रोफाइल फोटो (अधिकतम 150KB)</label><input id="profilePhoto" type="file" accept="image/*"></div>
+              <button class="btn btn-primary btn-block" id="btnSaveProfile" type="button" data-i18n="saveProfBtn">प्रोफाइल सुरक्षित गर्नुहोस्</button>
+              <h3 style="font-size:14px;margin:14px 0 8px" data-i18n="giftVoiceTitle">साथीलाई भ्वाइस समय उपहार</h3>
+              <div style="display:flex;gap:8px">
+                <input id="giftTo" placeholder="username">
+                <input id="giftHours" type="number" value="1" step="0.5" min="0.1" style="width:84px">
+                <button class="btn btn-secondary btn-sm" id="btnGift" type="button" data-i18n="sendGiftBtn">पठाउनुहोस्</button>
+              </div>
+            </div>
+            <div>
+              <h3 style="font-size:14px;margin:0 0 8px" data-i18n="equipTitle">स्किन, अवतार र माइक छान्नुहोस्</h3>
+              <div id="equipBox" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+              <h3 style="font-size:14px;margin:14px 0 8px" data-i18n="decorTitle">कोठाका सजावट सामान</h3>
+              <div id="decorBox"></div>
             </div>
           </div>
         </div>
@@ -1010,6 +1090,23 @@ input,select{
     </div>
   </div>
 </div>
+
+<!-- IOS PWA INSTALL INSTRUCTIONS MODAL -->
+<div class="modal-backdrop" id="iosInstallModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>📲 iPhone / iPad मा App इन्स्टल</h2>
+      <button class="close-x" type="button" onclick="closeModal('iosInstallModal')">&times;</button>
+    </div>
+    <p class="sub" style="font-size:13px;line-height:1.6">
+      १. तल Safari बारमा रहेको <b>Share (⬆️)</b> बटन थिच्नुहोस्।<br>
+      २. तल स्क्रोल गरी <b>Add to Home Screen</b> छान्नुहोस् र <b>Add</b> थिच्नुहोस्।
+    </p>
+    <button class="btn btn-primary btn-block" type="button" style="margin-top:12px" onclick="closeModal('iosInstallModal')">बुझें</button>
+  </div>
+</div>
+
+<div class="offline-pill" id="offlineBadge" role="status">⚠️ अफलाइन मोड — Offline</div>
 
 <div class="toast" id="toast"></div>
 
@@ -1294,10 +1391,12 @@ function updateAuthHeader(){
   }
   if (u){
     const totalFun = (u.funTokens || 0) + (u.dailyFunTokens || 0);
-    $('acctSummary').innerHTML = `<b>${esc(u.displayName || u.username)}</b> · ${totalFun} Fun · ${u.coins || 0} Coins · Lv${u.level || 1}`;
+    const sil = u.silverCoins ?? u.coins ?? 0;
+    const gld = u.goldCoins ?? 0;
+    $('acctSummary').innerHTML = `<b>${esc(u.displayName || u.username)}</b> · ${totalFun} Fun · ${sil}🥈 · ${gld}🥇 · Lv${u.level || 1}`;
     $('authTopBtn').textContent = lang === 'ne' ? 'प्रोफाइल' : 'Profile';
     $('drawerUserName').textContent = u.displayName || u.username;
-    $('drawerUserMeta').textContent = `@${u.username} · ${totalFun} Fun · ${u.coins || 0} Coins`;
+    $('drawerUserMeta').textContent = `@${u.username} · ${totalFun} Fun · ${sil}🥈 · ${gld}🥇`;
     $('drawerAuthBtn').textContent = lang === 'ne' ? 'कोठा' : 'Room';
     $('statWins').textContent = u.wins || 0;
     $('statLv').textContent = u.level || 1;
@@ -1452,7 +1551,7 @@ function switchTab(tab){
   if (tab === 'online'){ refreshLobby(); loadLeaderboard(); }
   if (tab === 'shop') loadShop();
   if (tab === 'market') loadMarket();
-  if (tab === 'profile') renderProfile();
+  if (tab === 'profile'){ loadShop(); renderProfile(); loadMyOrders(); }
 }
 document.querySelectorAll('.drawer-nav-btn').forEach(b => b.onclick = () => switchTab(b.dataset.tab));
 
@@ -1808,7 +1907,10 @@ $('btnInviteRoom').onclick = openInviteFriendsModal;
 $('btnDaily').onclick = async () => {
   if (!auth) return openAuth('login');
   const j = await api('/api/user/' + auth.username + '/daily-login', {method: 'POST', body: JSON.stringify({token: auth.token})});
-  if (j.ok){ auth.user = j.user; save(); updateAuthHeader(); toast(j.already ? 'आजको बोनस लिइसक्नुभयो' : '+५० दैनिक फन मिल्यो!'); }
+  if (j.ok){
+    auth.user = j.user; save(); updateAuthHeader();
+    toast(j.already ? 'आजको दैनिक बोनस लिइसक्नुभयो' : `+${j.addedFun || 30} दैनिक Fun Token मिल्यो!`);
+  }
   else toast(j.error || 'Failed');
 };
 
@@ -1822,24 +1924,100 @@ async function startQuickMatch(maxPlayers, customStake = null, customMode = 'cla
   connectOnlineRoom(j.roomCode, j.create, j.stake || 0, j.mode || 'classic');
 }
 
-// ===================== SHOP / BUYER-ONLY MARKET / PROFILE =====================
+// ===================== UNIVERSAL CLIENT IMAGE COMPRESSOR =====================
+async function compressProofImage(file, maxEdge = 1100, maxBase64Len = 220000){
+  const dataUrl = await new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result || ''));
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+  const img = await new Promise((res, rej) => {
+    const im = new Image();
+    im.onload = () => res(im);
+    im.onerror = () => rej(new Error('Unsupported image format on this device'));
+    im.src = dataUrl;
+  });
+  const scale = Math.min(1, maxEdge / Math.max(img.width || 1, img.height || 1));
+  const w = Math.max(1, Math.round((img.width || 800) * scale));
+  const h = Math.max(1, Math.round((img.height || 800) * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(img, 0, 0, w, h);
+  let quality = 0.80;
+  let out = canvas.toDataURL('image/jpeg', quality);
+  while (out.length > maxBase64Len && quality > 0.35){
+    quality -= 0.12;
+    out = canvas.toDataURL('image/jpeg', quality);
+  }
+  const base64 = out.split(',')[1] || '';
+  return { base64, mime: 'image/jpeg', dataUrl: out, kb: Math.round((base64.length * 3 / 4) / 1024) };
+}
+
+// ===================== SHOP / MARKET / PROFILE / GOLD RECHARGE =====================
+let selectedGoldPackId = null;
+let currentActiveOrder = null;
+let myOrdersCache = [];
+
+function fmtItemPrice(p){
+  const parts = [];
+  if (p.priceFun) parts.push(`${p.priceFun} Fun`);
+  const ps = p.priceSilver !== undefined ? p.priceSilver : (p.priceCoins || 0);
+  if (ps) parts.push(`${ps} 🥈 Silver`);
+  if (p.priceGold) parts.push(`${p.priceGold} 🥇 Gold`);
+  return parts.length ? parts.join(' + ') : 'Free';
+}
+
 async function loadShop(){
   const j = await api('/api/shop/get'); shop = j.config; if (!shop) return;
+  if ($('shopBalancePill')){
+    const sil = auth?.user?.silverCoins ?? auth?.user?.coins ?? 0;
+    const gld = auth?.user?.goldCoins ?? 0;
+    $('shopBalancePill').textContent = `🥈 ${sil} Silver · 🥇 ${gld} Gold`;
+  }
+
+  // Coin-purchasable Live Voice Packages
+  const sv = $('shopVoice'); sv.innerHTML = '';
+  const vGrid = document.createElement('div'); vGrid.className = 'grid-3';
+  (shop.voicePackages || []).forEach(p => {
+    const d = document.createElement('div'); d.className = 'item-card';
+    d.innerHTML = `<div><b>🎙️ ${esc(p.label)}</b><div class="sub num">${fmtItemPrice(p)}</div></div>`;
+    const btnRow = document.createElement('div'); btnRow.style.display = 'flex'; btnRow.style.gap = '6px'; btnRow.style.flexWrap = 'wrap';
+    const b = document.createElement('button'); b.className = 'btn btn-primary btn-sm'; b.textContent = lang === 'ne' ? 'Coin ले किन्नुहोस्' : 'Buy with Coins';
+    b.onclick = async () => {
+      if (!auth) return openAuth('login');
+      const r = await api('/api/user/' + auth.username + '/buy-soft', {
+        method: 'POST', body: JSON.stringify({kind: 'voice', id: p.id, token: auth.token})
+      });
+      if (r.ok){
+        auth.user = r.user; save(); updateAuthHeader(); loadShop(); renderProfile();
+        toast('🎙️ Voice सक्रिय भयो: ' + p.label);
+      } else toast(r.error || 'पर्याप्त Coin छैन');
+    };
+    btnRow.appendChild(b);
+    d.appendChild(btnRow);
+    vGrid.appendChild(d);
+  });
+  sv.appendChild(vGrid);
+
   const soft = $('shopSoft'); soft.innerHTML = '';
   const addGroup = (title, items, kind) => {
     const sec = document.createElement('div'); sec.style.marginBottom = '18px';
     sec.innerHTML = `<h2 style="font-size:16px;margin-bottom:8px">${title}</h2>`;
     const grid = document.createElement('div'); grid.className = 'grid-3';
     (items || []).forEach(p => {
-      if ((p.priceCoins || 0) === 0 && (p.priceFun || 0) === 0 && p.id === 'default') return;
+      if ((p.priceCoins || 0) === 0 && (p.priceSilver || 0) === 0 && (p.priceGold || 0) === 0 && (p.priceFun || 0) === 0 && p.id === 'default') return;
       const card = document.createElement('div'); card.className = 'item-card';
       const thumb = p.imageUrl ? `<img class="item-thumb" src="${p.imageUrl}" alt="${esc(p.label)}">` : `<span class="item-thumb">${p.emoji || '🎨'}</span>`;
-      card.innerHTML = `<div class="item-head">${thumb}<div><div style="font-weight:700;font-size:14px">${esc(p.label)}</div><div class="sub num">${p.priceCoins || 0} Coins · Lv ${p.minLevel || 1}</div></div></div>`;
+      card.innerHTML = `<div class="item-head">${thumb}<div><div style="font-weight:700;font-size:14px">${esc(p.label)}</div><div class="sub num">${fmtItemPrice(p)} · Lv ${p.minLevel || 1}</div></div></div>`;
       const b = document.createElement('button'); b.className = 'btn btn-primary btn-sm'; b.textContent = lang === 'ne' ? 'किन्नुहोस्' : 'Buy';
       b.onclick = async () => {
         if (!auth) return openAuth('login');
         const r = await api('/api/user/' + auth.username + '/buy-soft', {method: 'POST', body: JSON.stringify({kind, id: p.id, token: auth.token})});
-        if (r.ok){ auth.user = r.user; save(); updateAuthHeader(); toast('किनियो: ' + p.label); renderProfile(); }
+        if (r.ok){ auth.user = r.user; save(); updateAuthHeader(); loadShop(); renderProfile(); toast('किनियो: ' + p.label); }
         else toast(r.error || 'Failed');
       };
       card.appendChild(b); grid.appendChild(card);
@@ -1851,45 +2029,176 @@ async function loadShop(){
   addGroup(lang === 'ne' ? 'माइक स्किन (Mic Skins)' : 'Mic Skins', shop.mics, 'mic');
   addGroup(lang === 'ne' ? 'कोठा सजावट (Room Decor)' : 'Room Decor', shop.roomItems, 'room');
 
-  const sv = $('shopVoice'); sv.innerHTML = '';
-  if (!shop.paymentEnabled){
-    sv.innerHTML = `<p class="sub">${lang === 'ne' ? 'चाँडै आउँदैछ — एडमिनले वास्तविक भुक्तानी खोलेपछि भ्वाइस प्याक उपलब्ध हुनेछ।' : 'Coming soon — Admin has not enabled real-money payments yet.'}</p>`;
-  } else {
-    const grid = document.createElement('div'); grid.className = 'grid-3';
-    (shop.voicePackages || []).forEach(p => {
-      const d = document.createElement('div'); d.className = 'item-card';
-      d.innerHTML = `<div><b>${esc(p.label)}</b><div class="sub num">Rs. ${p.priceNpr || p.price || 0}</div></div>`;
-      const b = document.createElement('button'); b.className = 'btn btn-primary btn-sm'; b.textContent = 'Buy';
-      b.onclick = () => startPay('voice', p);
-      d.appendChild(b); grid.appendChild(d);
-    });
-    sv.appendChild(grid);
-  }
+  renderGoldRechargeOptions();
 }
-function startPay(packageType, pack){
-  pendingBuy = {packageType, packageId: pack.id, amount: pack.priceNpr || pack.price || 0, label: pack.label};
-  $('payBox').style.display = 'block';
-  const methods = shop.paymentMethods || [];
-  let html = `<p><b>${esc(pack.label)}</b> — Rs. ${pendingBuy.amount}</p><div class="field"><label>Method</label><select id="payMethod">`;
-  methods.forEach(m => html += `<option value="${m.id}">${esc(m.label)}</option>`);
-  html += '</select></div><div id="payInfo" class="sub"></div>';
-  $('payDetail').innerHTML = html;
-  const upd = () => { const m = methods.find(x => x.id === $('payMethod').value); $('payInfo').innerHTML = m ? `<b>${esc(m.label)}</b> · ${esc(m.detail || '')}` : ''; };
-  $('payMethod').onchange = upd; upd();
+
+function renderGoldRechargeOptions(){
+  if (!shop) return;
+  const packBox = $('goldPackList');
+  const methSel = $('rechargeMethodSel');
+  if (!packBox || !methSel) return;
+  const packs = shop.goldPackages || [];
+  if (!selectedGoldPackId && packs.length) selectedGoldPackId = packs[0].id;
+  packBox.innerHTML = '';
+  packs.forEach(p => {
+    const active = p.id === selectedGoldPackId;
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'btn ' + (active ? 'btn-primary' : 'btn-secondary');
+    card.style.flexDirection = 'column'; card.style.minHeight = '64px'; card.style.padding = '8px 10px';
+    card.innerHTML = `<span style="font-size:14px;font-weight:800">🥇 ${p.goldAmount} Gold</span><span class="num" style="font-size:12px;opacity:.88">Rs. ${p.priceNpr}</span>`;
+    card.onclick = () => { selectedGoldPackId = p.id; renderGoldRechargeOptions(); };
+    packBox.appendChild(card);
+  });
+  const curM = methSel.value;
+  methSel.innerHTML = '';
+  (shop.paymentMethods || []).forEach(m => {
+    const o = document.createElement('option');
+    o.value = m.id; o.textContent = m.label;
+    methSel.appendChild(o);
+  });
+  if (curM) methSel.value = curM;
 }
-$('btnSubmitPay').onclick = async () => {
+
+function copyCodeHelper(code, btn){
+  navigator.clipboard?.writeText(code).then(() => {
+    if (btn){ const old = btn.textContent; btn.textContent = '✓ कपि भयो!'; setTimeout(() => btn.textContent = old, 1800); }
+    toast('कोड कपि भयो: ' + code);
+  }).catch(() => toast('कोड: ' + code));
+}
+
+function renderActiveOrderBox(){
+  const box = $('activeOrderBox');
+  if (!box) return;
+  const o = currentActiveOrder;
+  if (!o){ box.style.display = 'none'; box.innerHTML = ''; return; }
+  box.style.display = 'block';
+  const qrHtml = o.methodQrUrl
+    ? `<img src="${esc(o.methodQrUrl)}" alt="QR" style="max-width:150px;border-radius:10px;border:1px solid var(--line);margin-top:6px">`
+    : '';
+  box.innerHTML = `
+    <div style="font-weight:800;font-size:14px;color:var(--gold);margin-bottom:6px">✅ अर्डर बन्यो! (${esc(o.packageLabel)} · Rs. ${o.amountNpr})</div>
+    <div style="font-size:12.5px;color:#fde68a;margin-bottom:8px">भुक्तानी गर्दा <b>अनिवार्य रूपमा Remarks / Note मा यो कोड पेस्ट गर्नुहोला</b>:</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;border-radius:10px;background:#15203b;border:1px dashed var(--gold);margin-bottom:10px">
+      <b class="num" style="font-size:17px;letter-spacing:1px;color:#fff">${esc(o.remarkCode)}</b>
+      <button class="btn btn-primary btn-sm" id="copyOrderCodeBtn" type="button">📋 कपि गर्नुहोस्</button>
+    </div>
+    <div style="padding:8px 10px;border-radius:10px;background:#10192e;border:1px solid var(--line);font-size:12.5px">
+      <div><b>भुक्तानी खाता (${esc(o.methodLabel)}):</b></div>
+      <div class="num" style="margin-top:3px;color:#fff;font-weight:700">${esc(o.methodDetail || 'Admin ले सेट गरेको खाता')}</div>
+      ${qrHtml}
+    </div>
+    <div class="sub" style="margin-top:8px">भुक्तानी गरेपछि तलको अर्डर सूचीमा गएर रसिद फोटो अपलोड (Submit) गर्नुहोस्।</div>
+  `;
+  $('copyOrderCodeBtn').onclick = () => copyCodeHelper(o.remarkCode, $('copyOrderCodeBtn'));
+}
+
+$('btnCreateGoldOrder').onclick = async () => {
   if (!auth) return openAuth('login');
-  if (!pendingBuy) return;
-  let proofData = '', proofMime = '';
-  const f = $('payProof').files?.[0];
-  if (f){
-    if (f.size > 150000) return toast('Max 150KB');
-    proofMime = f.type;
-    proofData = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1] || ''); r.onerror = rej; r.readAsDataURL(f); });
-  }
-  const j = await api('/api/shop/submit-proof', {method: 'POST', body: JSON.stringify({username: auth.username, token: auth.token, packageId: pendingBuy.packageId, packageType: pendingBuy.packageType, methodId: $('payMethod')?.value, amount: pendingBuy.amount, note: $('payNote').value, proofData, proofMime})});
-  if (j.ok){ toast('Proof sent'); $('payBox').style.display = 'none'; pendingBuy = null; } else toast(j.error || 'Failed');
+  if (!selectedGoldPackId) return toast('पहिले Gold Coin प्याकेज छान्नुहोस्');
+  const methodId = $('rechargeMethodSel').value;
+  if (!methodId) return toast('भुक्तानी माध्यम छान्नुहोस्');
+  const j = await api('/api/shop/create-order', {
+    method: 'POST',
+    body: JSON.stringify({ username: auth.username, token: auth.token, packageId: selectedGoldPackId, methodId })
+  });
+  if (!j.ok) return toast(j.error || 'Order failed');
+  currentActiveOrder = j.order;
+  renderActiveOrderBox();
+  loadMyOrders();
+  toast('अर्डर बन्यो — कोड कपि गरी भुक्तानी गर्नुहोस्!');
 };
+
+async function loadMyOrders(){
+  if (!auth?.token) return;
+  const j = await api(`/api/shop/my-orders?u=${encodeURIComponent(auth.username)}`);
+  if (!j.ok) return;
+  myOrdersCache = j.orders || [];
+  renderMyOrders();
+}
+
+function renderMyOrders(){
+  const list = $('myOrdersList');
+  if (!list) return;
+  list.innerHTML = '';
+  if (!myOrdersCache.length){
+    list.innerHTML = '<p class="sub">अहिलेसम्म कुनै रिचार्ज अर्डर छैन।</p>';
+    return;
+  }
+  myOrdersCache.forEach(o => {
+    const card = document.createElement('div');
+    card.style.cssText = 'padding:11px;border-radius:12px;background:#0b1120;border:1px solid var(--line)';
+    const badge = o.status === 'approved'
+      ? '<span style="color:#10b981;font-weight:800">✅ Active (स्वीकृत)</span>'
+      : o.status === 'rejected'
+        ? '<span style="color:#f87171;font-weight:800">❌ अस्वीकृत</span>'
+        : o.status === 'pending_admin'
+          ? '<span style="color:#f59e0b;font-weight:800">🕒 Admin Approve Pending</span>'
+          : '<span style="color:#60a5fa;font-weight:800">📤 रसिद अपलोड बाँकी</span>';
+
+    card.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <div><b>🥇 ${o.goldAmount} Gold</b> <span class="num sub">· Rs. ${o.amountNpr} · ${esc(o.methodLabel)}</span></div>
+        <div style="font-size:12px">${badge}</div>
+      </div>
+      <div class="sub num" style="margin-top:4px">कोड: <b style="color:#fde68a">${esc(o.remarkCode)}</b> · खाता: ${esc(o.methodDetail || '')}</div>
+      <div id="ordReason-${o.id}" class="sub" style="margin-top:4px;color:#cbd5e1">${esc(o.statusReason || '')}</div>
+    `;
+
+    if (o.status === 'awaiting_proof' || o.status === 'pending_admin'){
+      const upWrap = document.createElement('div');
+      upWrap.style.cssText = 'margin-top:8px;padding-top:8px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:6px';
+      const fIn = document.createElement('input');
+      fIn.type = 'file'; fIn.accept = 'image/*';
+      const noteIn = document.createElement('input');
+      noteIn.placeholder = 'वैकल्पिक टिपोट (TxID आदि)';
+      const row = document.createElement('div'); row.style.cssText = 'display:flex;gap:8px;align-items:center;flex-wrap:wrap';
+      const copyB = document.createElement('button'); copyB.type = 'button'; copyB.className = 'btn btn-secondary btn-sm'; copyB.textContent = '📋 कोड कपि';
+      copyB.onclick = () => copyCodeHelper(o.remarkCode, copyB);
+      const subB = document.createElement('button'); subB.type = 'button'; subB.className = 'btn btn-primary btn-sm';
+      subB.textContent = o.status === 'pending_admin' ? 'फेरि रसिद पठाउनुहोस्' : 'प्रमाण Submit गर्नुहोस्';
+      const stInfo = document.createElement('span'); stInfo.className = 'sub'; stInfo.style.fontSize = '11.5px';
+
+      subB.onclick = async () => {
+        const file = fIn.files?.[0];
+        if (!file) return toast('पहिले भुक्तानी रसिदको फोटो छान्नुहोस्');
+        subB.disabled = true;
+        stInfo.textContent = '⏳ फोटो कम्प्रेस र Processing हुँदैछ...';
+        try {
+          const comp = await compressProofImage(file);
+          stInfo.textContent = `⏳ Processing (${comp.kb}KB) — कोड र रसिद जाँच हुँदैछ...`;
+          const r = await api('/api/shop/submit-order-proof', {
+            method: 'POST',
+            body: JSON.stringify({
+              username: auth.username, token: auth.token,
+              orderId: o.id, proofData: comp.base64, proofMime: comp.mime, note: noteIn.value.trim()
+            })
+          });
+          if (!r.ok){
+            stInfo.textContent = r.error || 'पठाउन असफल';
+            subB.disabled = false;
+            return;
+          }
+          if (r.user){ auth.user = r.user; save(); updateAuthHeader(); renderProfile(); loadShop(); }
+          if (r.order?.status === 'approved'){
+            toast(`✅ स्वचालित जाँच पास! +${o.goldAmount} Gold Coins थपियो`);
+          } else {
+            toast('🕒 एडमिन जाँच पेन्डिङमा पठाइयो');
+          }
+          loadMyOrders();
+        } catch (err) {
+          stInfo.textContent = err?.message || 'फोटो पढ्न सकिएन';
+          subB.disabled = false;
+        }
+      };
+
+      row.append(copyB, subB, stInfo);
+      upWrap.append(fIn, noteIn, row);
+      card.appendChild(upWrap);
+    }
+    list.appendChild(card);
+  });
+}
 
 async function loadMarket(){
   const j = await api('/api/shop/market-list');
@@ -1903,7 +2212,7 @@ async function loadMarket(){
       (L.itemType === 'room' && (u.roomDecor || []).includes(L.itemId))
     );
     const d = document.createElement('div'); d.className = 'item-card';
-    d.innerHTML = `<div class="item-head"><span class="item-thumb">${esc(L.emoji || '🎁')}</span><div><div style="font-weight:700">${esc(L.label || (L.itemType + ':' + L.itemId))}</div><div class="sub num">${L.priceFun ? L.priceFun + ' Fun' : ''}${L.priceFun && L.priceCoins ? ' · ' : ''}${L.priceCoins ? L.priceCoins + ' Coins' : ''}</div></div></div>`;
+    d.innerHTML = `<div class="item-head"><span class="item-thumb">${esc(L.emoji || '🎁')}</span><div><div style="font-weight:700">${esc(L.label || (L.itemType + ':' + L.itemId))}</div><div class="sub num">${fmtItemPrice(L)}</div></div></div>`;
     const b = document.createElement('button');
     b.className = 'btn btn-sm ' + (owned ? 'btn-secondary' : 'btn-primary');
     b.textContent = owned ? (lang === 'ne' ? 'तपाईंसँग छ' : 'Owned') : (lang === 'ne' ? 'किन्नुहोस्' : 'Buy');
@@ -1930,14 +2239,34 @@ function renderProfile(){
   $('profileLoggedIn').style.display = has ? 'block' : 'none';
   if (!has) return;
   const u = auth.user;
+  const sil = u.silverCoins ?? u.coins ?? 0;
+  const gld = u.goldCoins ?? 0;
+  const lv = u.level || 1;
+  const baseD = shop?.dailyBaseFunTokens ?? 30;
+  const stepD = shop?.dailyPerLevelFunTokens ?? 20;
+  const todayDailyRate = baseD + (lv - 1) * stepD;
+  const nextDailyRate = baseD + lv * stepD;
+
   $('profileName').value = u.displayName || u.username;
   const photo = u.avatarPhoto
     ? `<img class="item-thumb" style="width:58px;height:58px;border-radius:50%;border:2px solid var(--gold)" src="${u.avatarPhoto}" alt="">`
     : `<div class="item-thumb" style="width:58px;height:58px;border-radius:50%;border:2px solid var(--gold)">👤</div>`;
   const decorIcons = {diyo:'🪔',lamp:'💡',dhaka:'🧢',sarangi:'🎻',trophy:'🏆',sofa:'🛋️'};
   const items = (u.roomDecorEquipped || []).map(x => `<span style="padding:3px 7px;background:var(--surface-2);border-radius:8px;font-size:12px">${decorIcons[x] || '✨'} ${esc(x)}</span>`).join('');
-  $('roomPreview').innerHTML = `${photo}<div style="flex:1;min-width:150px"><div style="font-size:16px;font-weight:800">${esc(u.displayName || u.username)}</div><div class="sub num">@${esc(u.username)} · Lv ${u.level || 1} · ${u.wins || 0} Wins</div></div><div style="display:flex;gap:5px;flex-wrap:wrap">${items}</div>`;
-  $('profCard').innerHTML = `<div class="sub num">Fun: <b>${u.funTokens || 0}</b> (+${u.dailyFunTokens || 0} daily) · Coins: <b>${u.coins || 0}</b> · Voice: <b>${u.voiceActive ? fmtMs(u.voiceRemainingMs) : 'Off'}</b> · Ref: <b>${u.referralCode || '—'}</b></div>`;
+  $('roomPreview').innerHTML = `${photo}<div style="flex:1;min-width:150px"><div style="font-size:16px;font-weight:800">${esc(u.displayName || u.username)}</div><div class="sub num">@${esc(u.username)} · Lv ${lv} · ${u.wins || 0} Wins</div></div><div style="display:flex;gap:5px;flex-wrap:wrap">${items}</div>`;
+  $('profCard').innerHTML = `
+    <div class="num" style="display:flex;gap:8px;flex-wrap:wrap;font-size:13px">
+      <span style="padding:5px 9px;border-radius:8px;background:#0b1120;border:1px solid var(--line)">🎲 Fun: <b>${u.funTokens || 0}</b> (+${u.dailyFunTokens || 0})</span>
+      <span style="padding:5px 9px;border-radius:8px;background:#0b1120;border:1px solid var(--line)">🥈 Silver: <b>${sil}</b></span>
+      <span style="padding:5px 9px;border-radius:8px;background:#0b1120;border:1px solid rgba(229,169,60,0.45);color:var(--gold)">🥇 Gold: <b>${gld}</b></span>
+      <span style="padding:5px 9px;border-radius:8px;background:#0b1120;border:1px solid var(--line)">🎙️ Voice: <b>${u.voiceActive ? fmtMs(u.voiceRemainingMs) : 'Off'}</b></span>
+    </div>`;
+  if ($('lvDailyInfo')){
+    $('lvDailyInfo').textContent = `अहिले Lv ${lv} दैनिक: ${todayDailyRate} Fun · Lv ${lv + 1} मा: ${nextDailyRate} Fun/दिन`;
+  }
+  if ($('friendsDatalist')){
+    $('friendsDatalist').innerHTML = (myFriendsData.friends || []).map(f => `<option value="${esc(f.username)}">${esc(f.displayName || f.username)}</option>`).join('');
+  }
 
   const box = $('equipBox'); box.innerHTML = '';
   (u.ownedSkins || []).forEach(id => {
@@ -1976,13 +2305,16 @@ function renderProfile(){
   } else {
     decor.innerHTML = `<p class="sub">${lang === 'ne' ? 'पसल वा बजारबाट कोठा सजावट किन्नुहोस्।' : 'Buy decor items in the Shop or Market first.'}</p>`;
   }
+  renderGoldRechargeOptions();
 }
 
 $('btnSaveProfile').onclick = async () => {
   const file = $('profilePhoto').files?.[0]; let avatarPhoto = auth.user.avatarPhoto || '';
   if (file){
-    if (file.size > 150000) return toast('Photo max 150KB');
-    avatarPhoto = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = rej; r.readAsDataURL(file); });
+    try {
+      const comp = await compressProofImage(file, 400, 140000);
+      avatarPhoto = comp.dataUrl;
+    } catch { return toast('Invalid photo'); }
   }
   const j = await api('/api/user/' + auth.username + '/update-profile', {method: 'POST', body: JSON.stringify({displayName: $('profileName').value.trim(), avatarPhoto, token: auth.token})});
   if (!j.ok) return toast(j.error || 'Failed');
@@ -1992,10 +2324,36 @@ $('btnShareRef').onclick = async () => {
   const link = location.origin + '/?ref=' + (auth.user.referralCode || '');
   try { await navigator.clipboard.writeText(link); toast('Referral link copied'); } catch { prompt('Copy link', link); }
 };
-$('btnConvert').onclick = async () => {
-  const j = await api('/api/user/' + auth.username + '/convert-fun', {method: 'POST', body: JSON.stringify({times: 1, token: auth.token})});
-  if (j.ok){ auth.user = j.user; save(); updateAuthHeader(); renderProfile(); toast('Converted 100 Fun → 1 Coin'); } else toast(j.error || 'Failed');
+$('btnBuyLevel').onclick = async () => {
+  const j = await api('/api/user/' + auth.username + '/buy-level', {method: 'POST', body: JSON.stringify({token: auth.token})});
+  if (j.ok){
+    auth.user = j.user; save(); updateAuthHeader(); renderProfile();
+    toast(`🎉 बधाई! अब Level ${j.user.level} (दैनिक ${j.dailyRateNow} Fun)`);
+  } else toast(j.error || 'Level up failed');
 };
+async function convertCurrency(direction){
+  const j = await api('/api/user/' + auth.username + '/convert-currency', {method: 'POST', body: JSON.stringify({direction, times: 1, token: auth.token})});
+  if (j.ok){ auth.user = j.user; save(); updateAuthHeader(); renderProfile(); loadShop(); toast('साटासाट सफल भयो!'); }
+  else toast(j.error || 'Failed');
+}
+$('btnConvFunSilver').onclick = () => convertCurrency('fun_to_silver');
+$('btnConvSilverGold').onclick = () => convertCurrency('silver_to_gold');
+$('btnConvGoldSilver').onclick = () => convertCurrency('gold_to_silver');
+
+$('btnSendCurrency').onclick = async () => {
+  const to = $('txToUser').value.trim().toLowerCase();
+  const currency = $('txCurrency').value;
+  const amount = Number($('txAmount').value) || 0;
+  if (!to || amount < 1) return toast('मान्य username र रकम राख्नुहोस्');
+  const j = await api('/api/user/' + auth.username + '/transfer-currency', {
+    method: 'POST', body: JSON.stringify({to, currency, amount, token: auth.token})
+  });
+  if (j.ok){
+    auth.user = j.user; save(); updateAuthHeader(); renderProfile();
+    toast(`✅ @${to} लाई ${amount} ${currency} पठाइयो!`);
+  } else toast(j.error || 'Transfer failed');
+};
+
 $('btnGift').onclick = async () => {
   const ms = Math.floor((parseFloat($('giftHours').value) || 0) * 3600000);
   const j = await api('/api/user/' + auth.username + '/gift-voice', {method: 'POST', body: JSON.stringify({to: $('giftTo').value.trim().toLowerCase(), ms, token: auth.token})});
@@ -2876,6 +3234,63 @@ if (auth?.token && auth?.username){
 } else {
   updateAuthHeader();
 }
+
+// ===================== PWA SERVICE WORKER, INSTALL & OFFLINE INDICATOR =====================
+(function initPWA(){
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
+  }
+  const topBtn = $('pwaInstallTopBtn');
+  const drawerBtn = $('drawerInstallBtn');
+  const offlineBadge = $('offlineBadge');
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  const isIOS = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+  let deferredInstall = null;
+
+  function syncInstallButtons(){
+    const canShow = !isStandalone && (!!deferredInstall || isIOS);
+    if (topBtn) topBtn.classList.toggle('show', canShow);
+    if (drawerBtn) drawerBtn.style.display = canShow ? 'inline-flex' : 'none';
+  }
+  async function triggerInstall(){
+    if (deferredInstall) {
+      deferredInstall.prompt();
+      const { outcome } = await deferredInstall.userChoice.catch(() => ({ outcome: 'dismissed' }));
+      if (outcome === 'accepted') {
+        deferredInstall = null;
+        syncInstallButtons();
+        toast('📲 एप इन्स्टल सुरु भयो!');
+      }
+      return;
+    }
+    if (isIOS) {
+      openModal('iosInstallModal');
+    } else {
+      toast('ब्राउजर मेनु (⋮) → Install app / Add to Home screen बाट राख्नुहोस्');
+    }
+  }
+  if (topBtn) topBtn.onclick = triggerInstall;
+  if (drawerBtn) drawerBtn.onclick = () => { if (typeof closeDrawer === 'function') closeDrawer(); triggerInstall(); };
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstall = e;
+    syncInstallButtons();
+  });
+  window.addEventListener('appinstalled', () => {
+    deferredInstall = null;
+    if (topBtn) topBtn.classList.remove('show');
+    if (drawerBtn) drawerBtn.style.display = 'none';
+    toast('📲 नेपाली लुडो Home Screen मा सफलतापूर्वक इन्स्टल भयो!');
+  });
+  function syncOnline(){
+    if (offlineBadge) offlineBadge.classList.toggle('show', !navigator.onLine);
+  }
+  window.addEventListener('online', syncOnline);
+  window.addEventListener('offline', syncOnline);
+  syncOnline();
+  syncInstallButtons();
+})();
 </script>
 </body>
 </html>

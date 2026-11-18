@@ -22,10 +22,20 @@ async function hashPassword(password, salt) {
 }
 function rid(n = 12) { const a = new Uint8Array(n); crypto.getRandomValues(a); return [...a].map(b => b.toString(16).padStart(2, '0')).join(''); }
 
+function syncUserCoins(u) {
+  if (!u) return u;
+  if (u.silverCoins === undefined) u.silverCoins = Number(u.coins) || 0;
+  if (u.goldCoins === undefined) u.goldCoins = 0;
+  u.coins = u.silverCoins;
+  return u;
+}
+
 function publicUser(u) {
   if (!u) return null;
   const now = Date.now();
   const voiceUntil = u.voiceUntil || 0;
+  const silverCoins = u.silverCoins !== undefined ? Number(u.silverCoins) || 0 : (Number(u.coins) || 0);
+  const goldCoins = Number(u.goldCoins) || 0;
   return {
     username: u.username,
     displayName: u.displayName,
@@ -37,7 +47,9 @@ function publicUser(u) {
     voiceRemainingMs: Math.max(0, voiceUntil - now),
     funTokens: u.funTokens || 0,
     dailyFunTokens: (u.dailyFunDate === new Date().toISOString().slice(0, 10) ? (u.dailyFunTokens || 0) : 0),
-    coins: u.coins || 0,
+    silverCoins,
+    goldCoins,
+    coins: silverCoins,
     equippedMic: u.equippedMic || 'mic_default',
     ownedMics: u.ownedMics || ['mic_default'],
     level: u.level || 1,
@@ -57,14 +69,212 @@ function publicUser(u) {
   };
 }
 
-function applyLevelUps(u) {
-  // 100 fun → 1 coin automatic conversion optional on win; 100 coins → level
-  while ((u.coins || 0) >= 100) {
-    u.coins -= 100;
-    u.level = (u.level || 1) + 1;
-    // level rewards applied by reading shop config externally when needed
+function genRemarkCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const arr = new Uint8Array(6);
+  crypto.getRandomValues(arr);
+  return 'LUDO-' + [...arr].map(b => chars[b % chars.length]).join('');
+}
+
+function applyLevelReward(user, cfg) {
+  const lr = cfg?.levelRewards || {};
+  const reward = lr[String(user.level)];
+  if (reward && (!user._lr || user._lr < user.level)) {
+    user._lr = user.level;
+    if (reward.skinId) user.ownedSkins = Array.from(new Set([...(user.ownedSkins || []), reward.skinId]));
+    if (reward.avatarId) user.ownedAvatars = Array.from(new Set([...(user.ownedAvatars || []), reward.avatarId]));
+    if (reward.roomItem) user.roomDecor = Array.from(new Set([...(user.roomDecor || []), reward.roomItem]));
+    if (reward.funTokens) user.funTokens = (user.funTokens || 0) + reward.funTokens;
   }
-  return u;
+}
+
+// ===================== Web Push (RFC 8291 + VAPID ES256) & Email Helpers =====================
+function b64uEnc(bytes) {
+  const arr = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  let bin = '';
+  for (let i = 0; i < arr.length; i++) bin += String.fromCharCode(arr[i]);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function b64uDec(str) {
+  const pad = str.length % 4 ? '='.repeat(4 - (str.length % 4)) : '';
+  const bin = atob((str + pad).replace(/-/g, '+').replace(/_/g, '/'));
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+function concatBytes(...arrays) {
+  const total = arrays.reduce((s, a) => s + a.length, 0);
+  const out = new Uint8Array(total);
+  let off = 0;
+  for (const a of arrays) { out.set(a, off); off += a.length; }
+  return out;
+}
+
+async function sendWebPushRFC8291(subscription, payloadObj, vapid, contactEmail) {
+  if (!subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
+    return { ok: false, status: 400, error: 'Invalid subscription' };
+  }
+  const enc = new TextEncoder();
+  const uaPubRaw = b64uDec(subscription.keys.p256dh);
+  const authSecret = b64uDec(subscription.keys.auth);
+
+  // Ephemeral ECDH keypair
+  const eph = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
+  const asPubRaw = new Uint8Array(await crypto.subtle.exportKey('raw', eph.publicKey));
+  const uaKey = await crypto.subtle.importKey('raw', uaPubRaw, { name: 'ECDH', namedCurve: 'P-256' }, false, []);
+  const sharedSecret = new Uint8Array(await crypto.subtle.deriveBits({ name: 'ECDH', public: uaKey }, eph.privateKey, 256));
+
+  // PRK & IKM (RFC 8291 Section 3.3)
+  const sharedKey = await crypto.subtle.importKey('raw', sharedSecret, 'HKDF', false, ['deriveBits']);
+  const webPushInfo = concatBytes(enc.encode('WebPush: info\0'), uaPubRaw, asPubRaw);
+  const ikm = new Uint8Array(await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt: authSecret, info: webPushInfo }, sharedKey, 256));
+
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const ikmKey = await crypto.subtle.importKey('raw', ikm, 'HKDF', false, ['deriveBits']);
+  const cekBits = await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt, info: enc.encode('Content-Encoding: aes128gcm\0') }, ikmKey, 128);
+  const nonce = new Uint8Array(await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt, info: enc.encode('Content-Encoding: nonce\0') }, ikmKey, 96));
+
+  const aesKey = await crypto.subtle.importKey('raw', cekBits, 'AES-GCM', false, ['encrypt']);
+  const plaintext = concatBytes(enc.encode(JSON.stringify(payloadObj)), new Uint8Array([2]));
+  const ciphertext = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce }, aesKey, plaintext));
+
+  // Content-Coding header: salt(16) + rs(4 BE = 4096) + idlen(1 = 65) + keyid(65)
+  const hdr = new Uint8Array(16 + 4 + 1 + asPubRaw.length);
+  hdr.set(salt, 0);
+  new DataView(hdr.buffer).setUint32(16, 4096, false);
+  hdr[20] = asPubRaw.length;
+  hdr.set(asPubRaw, 21);
+  const bodyBytes = concatBytes(hdr, ciphertext);
+
+  // VAPID JWT (ES256)
+  const endpointUrl = new URL(subscription.endpoint);
+  const jwtHeader = b64uEnc(enc.encode(JSON.stringify({ typ: 'JWT', alg: 'ES256' })));
+  const jwtPayload = b64uEnc(enc.encode(JSON.stringify({
+    aud: endpointUrl.origin,
+    exp: Math.floor(Date.now() / 1000) + 43200,
+    sub: 'mailto:' + (contactEmail || 'kgranshi@gmail.com')
+  })));
+  const unsigned = jwtHeader + '.' + jwtPayload;
+  const signKey = await crypto.subtle.importKey('jwk', vapid.privateJwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+  const sig = new Uint8Array(await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, signKey, enc.encode(unsigned)));
+  const jwt = unsigned + '.' + b64uEnc(sig);
+
+  const res = await fetch(subscription.endpoint, {
+    method: 'POST',
+    headers: {
+      'Authorization': `vapid t=${jwt}, k=${vapid.publicKey}`,
+      'TTL': '300',
+      'Urgency': 'high',
+      'Content-Encoding': 'aes128gcm',
+      'Content-Type': 'application/octet-stream'
+    },
+    body: bodyBytes
+  });
+  return { ok: res.ok, status: res.status };
+}
+
+async function sendAdminEmailAlert({ to, subject, text, html, env }) {
+  const recipient = String(to || 'kgranshi@gmail.com').trim();
+  if (!recipient || !recipient.includes('@')) return { ok: false, configured: false, reason: 'Invalid admin email' };
+
+  if (env.RESEND_API_KEY) {
+    try {
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from: env.EMAIL_FROM || 'Nepali Ludo <onboarding@resend.dev>',
+          to: [recipient],
+          subject,
+          text,
+          html
+        })
+      });
+      return { ok: res.ok, configured: true, provider: 'resend', status: res.status };
+    } catch (e) {
+      return { ok: false, configured: true, provider: 'resend', error: String(e?.message || e) };
+    }
+  }
+  if (env.BREVO_API_KEY) {
+    try {
+      const fromEmail = env.EMAIL_FROM || recipient;
+      const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: { 'api-key': env.BREVO_API_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sender: { name: 'Nepali Ludo Admin', email: fromEmail },
+          to: [{ email: recipient }],
+          subject,
+          textContent: text,
+          htmlContent: html
+        })
+      });
+      return { ok: res.ok, configured: true, provider: 'brevo', status: res.status };
+    } catch (e) {
+      return { ok: false, configured: true, provider: 'brevo', error: String(e?.message || e) };
+    }
+  }
+  if (env.ADMIN_ALERT_WEBHOOK_URL) {
+    try {
+      const res = await fetch(env.ADMIN_ALERT_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: recipient, subject, text, html, time: Date.now() })
+      });
+      return { ok: res.ok, configured: true, provider: 'webhook', status: res.status };
+    } catch (e) {
+      return { ok: false, configured: true, provider: 'webhook', error: String(e?.message || e) };
+    }
+  }
+  return { ok: false, configured: false, reason: 'Email API key (RESEND_API_KEY / BREVO_API_KEY / ADMIN_ALERT_WEBHOOK_URL) not set in environment.' };
+}
+
+async function verifyProofWorkerRest({ imageBase64, mimeType, remarkCode, expectedAmount, methodLabel, apiKey }) {
+  if (!apiKey) {
+    return {
+      ok: false, unavailable: true, codeFound: false, appearsEditedOrAI: false,
+      reason: 'स्वचालित AI प्रमाण जाँचको लागि GEMINI_API_KEY सेट नभएकोले एडमिन स्वीकृति पेन्डिङमा राखियो।'
+    };
+  }
+  try {
+    const prompt = [
+      'You are verifying a Nepali digital wallet / bank payment screenshot (eSewa, Khalti, Fonepay, IME Pay, or Bank Transfer).',
+      `Expected Remark / Reference Code: "${remarkCode}"`,
+      `Expected Payment Method: "${methodLabel || 'Wallet/Bank'}"`,
+      `Expected Amount: Rs. ${expectedAmount}`,
+      'Check if the exact remarkCode is genuinely in Remarks/Reference, amount matches, and image is NOT edited/photoshopped/AI-generated.',
+      'Return JSON with keys: codeFound (boolean), detectedRemarks (string), amountMatches (boolean), appearsEditedOrAI (boolean), reasonNe (brief Nepali explanation).'
+    ].join('\n');
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ inline_data: { mime_type: mimeType || 'image/jpeg', data: imageBase64 } }, { text: prompt }] }],
+        generationConfig: { responseMimeType: 'application/json' }
+      })
+    });
+    if (!res.ok) throw new Error('Gemini REST HTTP ' + res.status);
+    const data = await res.json();
+    const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    const parsed = JSON.parse(raw.trim());
+    const codeFound = !!parsed.codeFound;
+    const appearsEditedOrAI = !!parsed.appearsEditedOrAI;
+    const amountMatches = parsed.amountMatches !== false;
+    const verified = codeFound && !appearsEditedOrAI && amountMatches;
+    const reason = String(parsed.reasonNe || '').trim() || (
+      appearsEditedOrAI ? 'रसिद फोटोमा एडिट वा AI बनावटको शंका देखिएकोले एडमिन जाँच पेन्डिङमा छ।'
+      : !codeFound ? `अपलोड गरिएको रसिदको रिमार्क्समा कोड (${remarkCode}) भेटिएन।`
+      : !amountMatches ? `रसिदमा रकम Rs. ${expectedAmount} सँग मेल खाएन।`
+      : 'स्वचालित जाँच सफल भयो।'
+    );
+    return { ok: true, verified, codeFound, appearsEditedOrAI, amountMatches, detectedRemarks: String(parsed.detectedRemarks || ''), reason };
+  } catch (e) {
+    return {
+      ok: false, unavailable: true, codeFound: false, appearsEditedOrAI: false,
+      reason: 'स्वचालित AI जाँच सेवामा अस्थायी समस्या आएकोले एडमिन स्वीकृति पेन्डिङमा राखियो।'
+    };
+  }
 }
 
 // ===================== ShopConfig =====================
@@ -72,39 +282,46 @@ export class ShopConfig {
   constructor(ctx, env) { this.ctx = ctx; this.env = env; }
   defaultConfig() {
     return {
+      goldPackages: [
+        { id: 'g5', label: '5 Gold Coins', goldAmount: 5, priceNpr: 50 },
+        { id: 'g12', label: '12 Gold Coins (+2 Bonus)', goldAmount: 12, priceNpr: 100 },
+        { id: 'g32', label: '32 Gold Coins', goldAmount: 32, priceNpr: 250 },
+        { id: 'g70', label: '70 Gold Coins', goldAmount: 70, priceNpr: 500 },
+        { id: 'g150', label: '150 Gold Coins', goldAmount: 150, priceNpr: 1000 }
+      ],
       voicePackages: [
-        { id: 'v1h', label: '1 Hour Voice', ms: HOUR, priceNpr: 19 },
-        { id: 'v1d', label: '1 Day Voice', ms: DAY, priceNpr: 49 },
-        { id: 'v7d', label: '7 Days Voice', ms: 7 * DAY, priceNpr: 149 },
-        { id: 'v30d', label: '30 Days Voice', ms: 30 * DAY, priceNpr: 299 }
+        { id: 'v1h', label: '1 Hour Voice', ms: HOUR, priceNpr: 19, priceSilver: 100, priceGold: 0 },
+        { id: 'v1d', label: '1 Day Voice', ms: DAY, priceNpr: 49, priceSilver: 0, priceGold: 3 },
+        { id: 'v7d', label: '7 Days Voice', ms: 7 * DAY, priceNpr: 149, priceSilver: 0, priceGold: 8 },
+        { id: 'v30d', label: '30 Days Voice', ms: 30 * DAY, priceNpr: 299, priceSilver: 0, priceGold: 15 }
       ],
       skins: [
-        { id: 'default', label: 'Classic Durbar (परम्परागत)', priceCoins: 0, priceFun: 0, minLevel: 1 },
-        { id: 'gold', label: 'Dhaka Gold (ढाका र सुन)', priceCoins: 20, priceFun: 0, minLevel: 2 },
-        { id: 'nepal', label: 'Nepal Flag (नेपाल झण्डा)', priceCoins: 30, priceFun: 0, minLevel: 3 },
-        { id: 'neon', label: 'Tihar Glow (तिहार झिलिमिली)', priceCoins: 50, priceFun: 0, minLevel: 5 },
-        { id: 'himal', label: 'Himal Sagarmatha (हिमाल)', priceCoins: 25, priceFun: 0, minLevel: 2 },
-        { id: 'pahad', label: 'Pahad Laligurans (पहाड)', priceCoins: 25, priceFun: 0, minLevel: 2 },
-        { id: 'terai', label: 'Terai Lumbini (तराई)', priceCoins: 30, priceFun: 0, minLevel: 3 },
-        { id: 'durbar', label: 'Malla Durbar (दरबार)', priceCoins: 45, priceFun: 0, minLevel: 4 }
+        { id: 'default', label: 'Classic Durbar (परम्परागत)', priceCoins: 0, priceSilver: 0, priceGold: 0, priceFun: 0, minLevel: 1 },
+        { id: 'gold', label: 'Dhaka Gold (ढाका र सुन)', priceCoins: 20, priceSilver: 20, priceGold: 0, priceFun: 0, minLevel: 1 },
+        { id: 'nepal', label: 'Nepal Flag (नेपाल झण्डा)', priceCoins: 30, priceSilver: 30, priceGold: 0, priceFun: 0, minLevel: 1 },
+        { id: 'neon', label: 'Tihar Glow (तिहार झिलिमिली)', priceCoins: 50, priceSilver: 50, priceGold: 0, priceFun: 0, minLevel: 2 },
+        { id: 'himal', label: 'Himal Sagarmatha (हिमाल)', priceCoins: 25, priceSilver: 25, priceGold: 0, priceFun: 0, minLevel: 1 },
+        { id: 'pahad', label: 'Pahad Laligurans (पहाड)', priceCoins: 25, priceSilver: 25, priceGold: 0, priceFun: 0, minLevel: 1 },
+        { id: 'terai', label: 'Terai Lumbini (तराई)', priceCoins: 30, priceSilver: 30, priceGold: 0, priceFun: 0, minLevel: 2 },
+        { id: 'durbar', label: 'Malla Durbar (दरबार)', priceCoins: 45, priceSilver: 45, priceGold: 0, priceFun: 0, minLevel: 2 }
       ],
       avatars: [
-        { id: 'default', label: 'Default Avatar', priceCoins: 0, minLevel: 1, emoji: '🙂' },
-        { id: 'hero', label: 'Himalayan Hero (हिमाली नायक)', priceCoins: 15, minLevel: 2, imageUrl: '/assets/avatar_himal_hero.jpg' },
-        { id: 'king', label: 'Durbar Royal (दरबार राज)', priceCoins: 40, minLevel: 4, imageUrl: '/assets/avatar_durbar_royal.jpg' }
+        { id: 'default', label: 'Default Avatar', priceCoins: 0, priceSilver: 0, priceGold: 0, minLevel: 1, emoji: '🙂' },
+        { id: 'hero', label: 'Himalayan Hero (हिमाली नायक)', priceCoins: 15, priceSilver: 15, priceGold: 0, minLevel: 1, imageUrl: '/assets/avatar_himal_hero.jpg' },
+        { id: 'king', label: 'Durbar Royal (दरबार राज)', priceCoins: 40, priceSilver: 40, priceGold: 0, minLevel: 2, imageUrl: '/assets/avatar_durbar_royal.jpg' }
       ],
       mics: [
-        { id: 'mic_default', label: 'Default Mic', priceCoins: 0, minLevel: 1, emoji: '🎤' },
-        { id: 'mic_gold', label: 'Gold Mic', priceCoins: 25, minLevel: 2, emoji: '🎙️' },
-        { id: 'mic_neon', label: 'Brass Mic', priceCoins: 40, minLevel: 4, emoji: '📯' }
+        { id: 'mic_default', label: 'Default Mic', priceCoins: 0, priceSilver: 0, priceGold: 0, minLevel: 1, emoji: '🎤' },
+        { id: 'mic_gold', label: 'Gold Mic', priceCoins: 25, priceSilver: 25, priceGold: 0, minLevel: 1, emoji: '🎙️' },
+        { id: 'mic_neon', label: 'Brass Mic', priceCoins: 40, priceSilver: 40, priceGold: 0, minLevel: 2, emoji: '📯' }
       ],
       roomItems: [
-        { id: 'diyo', label: 'Tihar Diyo (दियो)', priceCoins: 8, minLevel: 1, emoji: '🪔' },
-        { id: 'lamp', label: 'Durbar Lamp', priceCoins: 10, minLevel: 1, emoji: '💡' },
-        { id: 'dhaka', label: 'Dhaka Topi (ढाका टोपी)', priceCoins: 15, minLevel: 2, emoji: '🧢' },
-        { id: 'sarangi', label: 'Sarangi (सारङ्गी)', priceCoins: 20, minLevel: 2, emoji: '🎻' },
-        { id: 'trophy', label: 'Trophy Shelf', priceCoins: 25, minLevel: 3, emoji: '🏆' },
-        { id: 'sofa', label: 'VIP Baithak', priceCoins: 35, minLevel: 4, emoji: '🛋️' }
+        { id: 'diyo', label: 'Tihar Diyo (दियो)', priceCoins: 8, priceSilver: 8, priceGold: 0, minLevel: 1, emoji: '🪔' },
+        { id: 'lamp', label: 'Durbar Lamp', priceCoins: 10, priceSilver: 10, priceGold: 0, minLevel: 1, emoji: '💡' },
+        { id: 'dhaka', label: 'Dhaka Topi (ढाका टोपी)', priceCoins: 15, priceSilver: 15, priceGold: 0, minLevel: 1, emoji: '🧢' },
+        { id: 'sarangi', label: 'Sarangi (सारङ्गी)', priceCoins: 20, priceSilver: 20, priceGold: 0, minLevel: 2, emoji: '🎻' },
+        { id: 'trophy', label: 'Trophy Shelf', priceCoins: 25, priceSilver: 25, priceGold: 0, minLevel: 2, emoji: '🏆' },
+        { id: 'sofa', label: 'VIP Baithak', priceCoins: 35, priceSilver: 35, priceGold: 0, minLevel: 3, emoji: '🛋️' }
       ],
       levelRewards: {
         '2': { skinId: 'gold', funTokens: 50 },
@@ -112,21 +329,109 @@ export class ShopConfig {
         '5': { skinId: 'neon', funTokens: 100 }
       },
       paymentMethods: [
-        { id: 'esewa', label: 'eSewa', detail: 'Set by admin', qrUrl: '' },
-        { id: 'khalti', label: 'Khalti', detail: 'Set by admin', qrUrl: '' }
+        { id: 'esewa', label: 'eSewa', detail: '9800000000 (Admin ले सेट गर्नुहोस्)', qrUrl: '' },
+        { id: 'khalti', label: 'Khalti', detail: '9800000000 (Admin ले सेट गर्नुहोस्)', qrUrl: '' },
+        { id: 'bank', label: 'Bank / FonePay QR', detail: 'Bank A/C (Admin ले सेट गर्नुहोस्)', qrUrl: '' }
       ],
-      dailyLoginVoiceMs: 0, // voice from referral/buy/gift primarily
-      dailyLoginFunTokens: 50, // expires same calendar day
-      referralRewardFunTokens: 100, // both sides
-      referralRewardVoiceMs: 10 * DAY, // both sides
+      dailyLoginVoiceMs: 0,
+      dailyBaseFunTokens: 30,
+      dailyPerLevelFunTokens: 20,
+      dailyLoginFunTokens: 30,
+      levelUpGoldCost: 10,
+      referralRewardFunTokens: 100,
+      referralRewardVoiceMs: 10 * DAY,
       starterFunTokens: 100,
       defaultStake: 20,
       stakes: [0, 10, 20, 50, 100],
-      paymentEnabled: false, // real-money shop coming soon until admin enables
+      goldRechargeEnabled: true,
+      paymentEnabled: true,
+      adminNotifyEmail: 'kgranshi@gmail.com',
+      adminLockPin: '1122',
       updatedAt: Date.now()
     };
   }
-  async getConfig() { return (await this.ctx.storage.get('config')) || this.defaultConfig(); }
+  async getConfig() {
+    const def = this.defaultConfig();
+    const stored = await this.ctx.storage.get('config');
+    if (!stored) return def;
+    return {
+      ...def,
+      ...stored,
+      adminNotifyEmail: stored.adminNotifyEmail || def.adminNotifyEmail,
+      adminLockPin: stored.adminLockPin || def.adminLockPin,
+      goldPackages: (stored.goldPackages && stored.goldPackages.length) ? stored.goldPackages : def.goldPackages,
+      voicePackages: (stored.voicePackages && stored.voicePackages.length) ? stored.voicePackages : def.voicePackages,
+      paymentMethods: (stored.paymentMethods && stored.paymentMethods.length) ? stored.paymentMethods : def.paymentMethods
+    };
+  }
+
+  async getVapidKeys() {
+    if (this.env.VAPID_PUBLIC_KEY && this.env.VAPID_PRIVATE_JWK) {
+      try {
+        const jwk = typeof this.env.VAPID_PRIVATE_JWK === 'string' ? JSON.parse(this.env.VAPID_PRIVATE_JWK) : this.env.VAPID_PRIVATE_JWK;
+        return { publicKey: this.env.VAPID_PUBLIC_KEY, privateJwk: jwk };
+      } catch {}
+    }
+    let stored = await this.ctx.storage.get('vapid');
+    if (stored?.publicKey && stored?.privateJwk) return stored;
+    const kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']);
+    const pubRaw = new Uint8Array(await crypto.subtle.exportKey('raw', kp.publicKey));
+    const privateJwk = await crypto.subtle.exportKey('jwk', kp.privateKey);
+    stored = { publicKey: b64uEnc(pubRaw), privateJwk };
+    await this.ctx.storage.put('vapid', stored);
+    return stored;
+  }
+
+  async dispatchPendingAlerts({ title, body, tag = 'ludo-pending-order' }) {
+    const cfg = await this.getConfig();
+    const subs = (await this.ctx.storage.get('pushSubscriptions')) || [];
+    const vapid = await this.getVapidKeys();
+    const alive = [];
+    let pushSent = 0, pushFailed = 0;
+    for (const sub of subs) {
+      try {
+        const res = await sendWebPushRFC8291(sub, { title, body, url: '/admin.html#proofs', tag }, vapid, cfg.adminNotifyEmail);
+        if (res.ok) { pushSent++; alive.push(sub); }
+        else if (res.status === 404 || res.status === 410) { pushFailed++; }
+        else { pushFailed++; alive.push(sub); }
+      } catch {
+        pushFailed++;
+        alive.push(sub);
+      }
+    }
+    if (alive.length !== subs.length) {
+      await this.ctx.storage.put('pushSubscriptions', alive);
+    }
+    const emailRes = await sendAdminEmailAlert({
+      to: cfg.adminNotifyEmail || 'kgranshi@gmail.com',
+      subject: title,
+      text: `${body}\n\nAdmin Panel: /admin.html`,
+      html: `<div style="font-family:sans-serif;padding:16px"><h3>${title}</h3><p>${body}</p><p>कृपया Admin Panel खोलेर रसिद जाँच गर्नुहोस्।</p></div>`,
+      env: this.env
+    });
+    return { pushSent, pushFailed, totalSubs: alive.length, emailRes };
+  }
+
+  async alarm() {
+    const orders = (await this.ctx.storage.get('orders')) || [];
+    const now = Date.now();
+    const pending = orders.filter(o => o.status === 'pending_admin');
+    if (!pending.length) return;
+    const due = pending.filter(o => !o.lastNotifiedAt || (now - o.lastNotifiedAt) >= 270000);
+    if (due.length) {
+      for (const o of pending) o.lastNotifiedAt = now;
+      await this.ctx.storage.put('orders', orders);
+      const first = due[0];
+      await this.dispatchPendingAlerts({
+        title: `🔔 ${pending.length} पेन्डिङ Gold अर्डर बाँकी छ!`,
+        body: `@${first.username} — ${first.goldAmount} Gold (Rs.${first.amountNpr}) · कोड: ${first.remarkCode}`,
+        tag: 'ludo-pending-reminder'
+      });
+    }
+    if (typeof this.ctx.storage.setAlarm === 'function') {
+      await this.ctx.storage.setAlarm(now + 300000);
+    }
+  }
 
   async fetch(request) {
     if (request.method === 'OPTIONS') return cors();
@@ -146,6 +451,166 @@ export class ShopConfig {
       return json({ ok: true, config: next });
     }
 
+    // Step 1 of Gold Coin Recharge: Create order + generate remark code BEFORE showing account/QR
+    if (path === 'create-order' && request.method === 'POST') {
+      const username = String(body.username || '').trim().toLowerCase();
+      const token = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '') || String(body.token || '');
+      if (!username || !token) return json({ ok: false, error: 'auth' }, 401);
+      const ur = await this.env.USERS.get(this.env.USERS.idFromName(username)).fetch(new Request('https://user/me', { headers: { Authorization: 'Bearer ' + token } }));
+      if (!ur.ok) return json({ ok: false, error: 'auth' }, 401);
+      const cfg = await this.getConfig();
+      if (cfg.goldRechargeEnabled === false) return json({ ok: false, error: 'Gold recharge currently disabled' }, 403);
+      const pack = (cfg.goldPackages || []).find(x => x.id === body.packageId);
+      const method = (cfg.paymentMethods || []).find(x => x.id === body.methodId);
+      if (!pack || !method) return json({ ok: false, error: 'Invalid package or payment method' }, 400);
+
+      const orders = (await this.ctx.storage.get('orders')) || [];
+      const order = {
+        id: rid(8),
+        username,
+        packageType: 'gold',
+        packageId: pack.id,
+        packageLabel: pack.label,
+        goldAmount: Number(pack.goldAmount) || 0,
+        amountNpr: Number(pack.priceNpr) || 0,
+        methodId: method.id,
+        methodLabel: method.label,
+        methodDetail: method.detail || '',
+        methodQrUrl: method.qrUrl || '',
+        remarkCode: genRemarkCode(),
+        status: 'awaiting_proof',
+        statusReason: 'भुक्तानी गर्दा Remarks मा यही कोड पेस्ट गरी रसिद अपलोड गर्नुहोस्।',
+        aiCheck: null,
+        proofData: '',
+        proofMime: '',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        lastNotifiedAt: 0
+      };
+      orders.push(order);
+      while (orders.length > 300) orders.shift();
+      await this.ctx.storage.put('orders', orders);
+      return json({ ok: true, order, method });
+    }
+
+    if (path === 'my-orders' && request.method === 'GET') {
+      const username = String(url.searchParams.get('u') || '').trim().toLowerCase();
+      const token = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '') || String(url.searchParams.get('token') || '');
+      if (!username || !token) return json({ ok: false, error: 'auth' }, 401);
+      const ur = await this.env.USERS.get(this.env.USERS.idFromName(username)).fetch(new Request('https://user/me', { headers: { Authorization: 'Bearer ' + token } }));
+      if (!ur.ok) return json({ ok: false, error: 'auth' }, 401);
+      const orders = ((await this.ctx.storage.get('orders')) || [])
+        .filter(o => o.username === username)
+        .slice(-25)
+        .reverse()
+        .map(o => ({ ...o, hasProof: !!o.proofData, proofData: undefined }));
+      return json({ ok: true, orders });
+    }
+
+    if (path === 'submit-order-proof' && request.method === 'POST') {
+      const username = String(body.username || '').trim().toLowerCase();
+      const token = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '') || String(body.token || '');
+      if (!username || !token) return json({ ok: false, error: 'auth' }, 401);
+      const ur = await this.env.USERS.get(this.env.USERS.idFromName(username)).fetch(new Request('https://user/me', { headers: { Authorization: 'Bearer ' + token } }));
+      if (!ur.ok) return json({ ok: false, error: 'auth' }, 401);
+
+      const orders = (await this.ctx.storage.get('orders')) || [];
+      const order = orders.find(o => o.id === body.orderId && o.username === username);
+      if (!order) return json({ ok: false, error: 'Order not found' }, 404);
+      if (order.status === 'approved') return json({ ok: false, error: 'Order already approved' }, 400);
+
+      const proofData = String(body.proofData || '');
+      const proofMime = String(body.proofMime || 'image/jpeg');
+      if (!proofData || proofData.length > 350000 || !proofMime.startsWith('image/')) {
+        return json({ ok: false, error: 'Valid compressed payment screenshot required' }, 400);
+      }
+      order.proofData = proofData;
+      order.proofMime = proofMime;
+      order.note = String(body.note || '').slice(0, 300);
+      order.updatedAt = Date.now();
+
+      let verifyRes = {
+        ok: false,
+        verified: false,
+        codeFound: false,
+        appearsEditedOrAI: false,
+        reason: 'स्वचालित जाँच उपलब्ध नभएकोले एडमिन स्वीकृति पेन्डिङमा राखियो।'
+      };
+      if (typeof this.env.verifyPaymentProof === 'function') {
+        verifyRes = await this.env.verifyPaymentProof({
+          imageBase64: proofData,
+          mimeType: proofMime,
+          remarkCode: order.remarkCode,
+          expectedAmount: order.amountNpr,
+          methodLabel: order.methodLabel
+        });
+      } else if (this.env.GEMINI_API_KEY) {
+        verifyRes = await verifyProofWorkerRest({
+          imageBase64: proofData,
+          mimeType: proofMime,
+          remarkCode: order.remarkCode,
+          expectedAmount: order.amountNpr,
+          methodLabel: order.methodLabel,
+          apiKey: this.env.GEMINI_API_KEY
+        });
+      }
+
+      order.aiCheck = {
+        checkedAt: Date.now(),
+        codeFound: !!verifyRes.codeFound,
+        appearsEditedOrAI: !!verifyRes.appearsEditedOrAI,
+        amountMatches: !!verifyRes.amountMatches,
+        detectedRemarks: String(verifyRes.detectedRemarks || ''),
+        reason: String(verifyRes.reason || '')
+      };
+
+      let updatedUser = null;
+      if (verifyRes.verified) {
+        order.status = 'approved';
+        order.statusReason = verifyRes.reason || 'स्वचालित जाँच पास भयो! Gold Coins तुरुन्त थपियो।';
+        order.approvedBy = 'auto';
+        const fulfillRes = await this.env.USERS.get(this.env.USERS.idFromName(username)).fetch(new Request('https://user/admin-fulfill', {
+          method: 'POST', headers: internalHeaders(this.env),
+          body: JSON.stringify({ secret, packageType: 'gold', goldAmount: order.goldAmount })
+        }));
+        const fj = await fulfillRes.json().catch(() => null);
+        if (fj?.ok) updatedUser = fj.user;
+      } else {
+        order.status = 'pending_admin';
+        order.statusReason = verifyRes.reason || `कोड (${order.remarkCode}) रसिदमा पुष्टि नभएकाले एडमिन स्वीकृति पेन्डिङ छ।`;
+        order.lastNotifiedAt = Date.now();
+        try {
+          await this.env.LOBBY.get(this.env.LOBBY.idFromName('main')).fetch(new Request('https://lobby/admin-msg', {
+            method: 'POST', headers: internalHeaders(this.env),
+            body: JSON.stringify({
+              from: order.username,
+              type: 'gold_order_pending',
+              text: `Pending Gold Order ${order.remarkCode}: Rs.${order.amountNpr} (${order.goldAmount} Gold) — ${order.statusReason}`,
+              time: Date.now(),
+              meta: { orderId: order.id }
+            })
+          }));
+        } catch {}
+      }
+
+      await this.ctx.storage.put('orders', orders);
+      if (order.status === 'pending_admin') {
+        await this.dispatchPendingAlerts({
+          title: `🔔 नयाँ Gold Order स्वीकृति पेन्डिङ (${order.remarkCode})`,
+          body: `@${order.username} ले ${order.goldAmount} Gold (Rs.${order.amountNpr}) को रसिद पठाएका छन् — ${order.statusReason}`,
+          tag: 'ludo-order-' + order.id
+        }).catch(() => null);
+        if (typeof this.ctx.storage.setAlarm === 'function') {
+          await this.ctx.storage.setAlarm(Date.now() + 300000).catch(() => null);
+        }
+      }
+      return json({
+        ok: true,
+        order: { ...order, hasProof: true, proofData: undefined },
+        user: updatedUser
+      });
+    }
+
     if (path === 'submit-proof' && request.method === 'POST') {
       const username = String(body.username || '').trim().toLowerCase();
       const token = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '') || String(body.token || '');
@@ -160,7 +625,7 @@ export class ShopConfig {
       if (!pack || !method || !Number.isFinite(amount) || amount !== Number(pack.priceNpr || pack.price) || amount <= 0) return json({ ok: false, error: 'invalid package, method or amount' }, 400);
       const proofData = String(body.proofData || '');
       const proofMime = String(body.proofMime || '');
-      if (proofData.length > 200000 || (proofData && !['image/jpeg','image/png','image/webp','application/pdf'].includes(proofMime))) return json({ ok: false, error: 'invalid proof file' }, 400);
+      if (proofData.length > 350000 || (proofData && !proofMime.startsWith('image/') && proofMime !== 'application/pdf')) return json({ ok: false, error: 'invalid proof file' }, 400);
       if (!proofData && !String(body.note || '').trim()) return json({ ok: false, error: 'payment proof or note required' }, 400);
       const proofs = (await this.ctx.storage.get('proofs')) || [];
       const item = {
@@ -184,14 +649,64 @@ export class ShopConfig {
 
     if (path === 'proofs') {
       if (!secret || request.headers.get('X-Admin-Secret') !== secret) return json({ ok: false, error: 'unauthorized' }, 403);
-      return json({ ok: true, proofs: ((await this.ctx.storage.get('proofs')) || []).slice().reverse() });
+      const orders = (await this.ctx.storage.get('orders')) || [];
+      const proofs = (await this.ctx.storage.get('proofs')) || [];
+      const now = Date.now();
+      let dirty = false;
+      let needsReminder = false;
+      const pendingOrders = orders.filter(o => o.status === 'pending_admin');
+      for (const o of pendingOrders) {
+        if (!o.lastNotifiedAt || (now - o.lastNotifiedAt) >= 300000) {
+          o.lastNotifiedAt = now;
+          dirty = true;
+          needsReminder = true;
+        }
+      }
+      if (dirty) await this.ctx.storage.put('orders', orders);
+      const normalizedOrders = orders
+        .filter(o => o.status !== 'awaiting_proof' || o.proofData)
+        .map(o => ({
+          id: o.id, kind: 'gold_order', username: o.username,
+          packageType: 'gold', packageId: o.packageId, packageLabel: o.packageLabel,
+          goldAmount: o.goldAmount, amount: o.amountNpr, methodId: o.methodId, methodLabel: o.methodLabel,
+          remarkCode: o.remarkCode, status: o.status, statusReason: o.statusReason,
+          aiCheck: o.aiCheck, note: o.note || '', proofData: o.proofData, proofMime: o.proofMime,
+          time: o.updatedAt || o.createdAt
+        }));
+      const normalizedLegacy = proofs.map(p => ({ ...p, kind: 'legacy_proof', status: p.status === 'pending' ? 'pending_admin' : p.status }));
+      const combined = [...normalizedOrders, ...normalizedLegacy].sort((a, b) => (b.time || 0) - (a.time || 0));
+      const pendingCount = combined.filter(x => x.status === 'pending_admin').length;
+      return json({ ok: true, proofs: combined, pendingCount, needsReminder });
     }
 
     if (path === 'proof-action' && request.method === 'POST') {
-      if (!secret || body.secret !== secret) return json({ ok: false, error: 'unauthorized' }, 403);
+      if (!secret || (body.secret !== secret && request.headers.get('X-Admin-Secret') !== secret)) return json({ ok: false, error: 'unauthorized' }, 403);
+      const orders = (await this.ctx.storage.get('orders')) || [];
+      const order = orders.find(x => x.id === body.proofId);
+      if (order) {
+        if (order.status === 'approved') return json({ ok: false, error: 'Already approved' }, 400);
+        if (body.action === 'approve') {
+          order.status = 'approved';
+          order.approvedBy = 'admin';
+          order.statusReason = String(body.reason || 'एडमिनद्वारा स्वीकृत — Gold Coins थपियो।');
+          order.updatedAt = Date.now();
+          await this.ctx.storage.put('orders', orders);
+          await this.env.USERS.get(this.env.USERS.idFromName(order.username.toLowerCase())).fetch(new Request('https://user/admin-fulfill', {
+            method: 'POST', headers: internalHeaders(this.env),
+            body: JSON.stringify({ secret, packageType: 'gold', goldAmount: order.goldAmount })
+          }));
+        } else {
+          order.status = 'rejected';
+          order.statusReason = String(body.reason || 'एडमिनद्वारा अस्वीकृत (रसिद मान्य देखिएन)।');
+          order.updatedAt = Date.now();
+          await this.ctx.storage.put('orders', orders);
+        }
+        return json({ ok: true, proof: { ...order, proofData: undefined } });
+      }
       const proofs = (await this.ctx.storage.get('proofs')) || [];
       const p = proofs.find(x => x.id === body.proofId);
       if (!p) return json({ ok: false, error: 'not found' }, 404);
+      if (p.status === 'approved') return json({ ok: false, error: 'Already approved' }, 400);
       p.status = body.action === 'approve' ? 'approved' : 'rejected';
       await this.ctx.storage.put('proofs', proofs);
       if (body.action === 'approve') {
@@ -204,7 +719,7 @@ export class ShopConfig {
       return json({ ok: true, proof: p });
     }
 
-    // Marketplace listings (Admin sells items to players for Fun Tokens or Coins)
+    // Marketplace listings (Admin sells items to players for Fun Tokens or Silver/Gold Coins)
     if (path === 'market-list' && request.method === 'GET') {
       return json({ ok: true, listings: (await this.ctx.storage.get('market')) || [] });
     }
@@ -216,12 +731,14 @@ export class ShopConfig {
       const itemType = String(body.itemType || ''), itemId = String(body.itemId || '').trim();
       const label = String(body.label || `${itemType}:${itemId}`).trim().slice(0, 48);
       const emoji = String(body.emoji || '').trim().slice(0, 8);
-      const priceFun = Number(body.priceFun) || 0, priceCoins = Number(body.priceCoins) || 0;
-      if (!['skin','avatar','mic','room'].includes(itemType) || !/^[a-z0-9_-]{1,40}$/i.test(itemId) || priceFun < 0 || priceCoins < 0 || priceFun + priceCoins <= 0 || priceFun > 1000000 || priceCoins > 1000000) {
+      const priceFun = Number(body.priceFun) || 0;
+      const priceSilver = Number(body.priceSilver !== undefined ? body.priceSilver : body.priceCoins) || 0;
+      const priceGold = Number(body.priceGold) || 0;
+      if (!['skin','avatar','mic','room'].includes(itemType) || !/^[a-z0-9_-]{1,40}$/i.test(itemId) || priceFun < 0 || priceSilver < 0 || priceGold < 0 || (priceFun + priceSilver + priceGold) <= 0 || priceFun > 1000000 || priceSilver > 1000000 || priceGold > 100000) {
         return json({ ok: false, error: 'Invalid listing parameters' }, 400);
       }
       const listings = (await this.ctx.storage.get('market')) || [];
-      const item = { id: rid(6), seller: 'admin', isAdminListing: true, itemType, itemId, label, emoji, priceFun, priceCoins, time: Date.now() };
+      const item = { id: rid(6), seller: 'admin', isAdminListing: true, itemType, itemId, label, emoji, priceFun, priceSilver, priceCoins: priceSilver, priceGold, time: Date.now() };
       listings.push(item); while (listings.length > 100) listings.shift();
       await this.ctx.storage.put('market', listings);
       return json({ ok: true, item });
@@ -243,7 +760,13 @@ export class ShopConfig {
       if (listing.seller === buyer) return json({ ok: false, error: 'cannot buy own' }, 400);
       const pay = await this.env.USERS.get(this.env.USERS.idFromName(buyer)).fetch(new Request('https://user/market-pay', {
         method: 'POST', headers: internalHeaders(this.env),
-        body: JSON.stringify({ token: body.token, priceFun: listing.priceFun, priceCoins: listing.priceCoins, itemType: listing.itemType, itemId: listing.itemId, seller: listing.seller })
+        body: JSON.stringify({
+          token: body.token,
+          priceFun: listing.priceFun || 0,
+          priceSilver: listing.priceSilver !== undefined ? listing.priceSilver : (listing.priceCoins || 0),
+          priceGold: listing.priceGold || 0,
+          itemType: listing.itemType, itemId: listing.itemId, seller: listing.seller
+        })
       }));
       const pj = await pay.json();
       if (!pj.ok) return json(pj, 400);
@@ -252,6 +775,49 @@ export class ShopConfig {
         await this.ctx.storage.put('market', next);
       }
       return json({ ok: true, user: pj.user });
+    }
+
+    // Admin Web Push & Alert Notification endpoints
+    if (path === 'push-public-key' && request.method === 'GET') {
+      if (!secret || request.headers.get('X-Admin-Secret') !== secret) return json({ ok: false, error: 'unauthorized' }, 403);
+      const vapid = await this.getVapidKeys();
+      const subs = (await this.ctx.storage.get('pushSubscriptions')) || [];
+      const cfg = await this.getConfig();
+      const emailConfigured = !!(this.env.RESEND_API_KEY || this.env.BREVO_API_KEY || this.env.ADMIN_ALERT_WEBHOOK_URL);
+      return json({
+        ok: true,
+        publicKey: vapid.publicKey,
+        subscriptionCount: subs.length,
+        adminNotifyEmail: cfg.adminNotifyEmail || 'kgranshi@gmail.com',
+        emailConfigured
+      });
+    }
+    if (path === 'push-subscribe' && request.method === 'POST') {
+      if (!secret || (body.secret !== secret && request.headers.get('X-Admin-Secret') !== secret)) return json({ ok: false, error: 'unauthorized' }, 403);
+      const sub = body.subscription;
+      if (!sub?.endpoint || !sub?.keys?.p256dh || !sub?.keys?.auth) return json({ ok: false, error: 'Invalid PushSubscription' }, 400);
+      const subs = (await this.ctx.storage.get('pushSubscriptions')) || [];
+      const filtered = subs.filter(x => x.endpoint !== sub.endpoint);
+      filtered.push({ endpoint: sub.endpoint, keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth }, addedAt: Date.now() });
+      while (filtered.length > 20) filtered.shift();
+      await this.ctx.storage.put('pushSubscriptions', filtered);
+      return json({ ok: true, subscriptionCount: filtered.length });
+    }
+    if (path === 'push-unsubscribe' && request.method === 'POST') {
+      if (!secret || (body.secret !== secret && request.headers.get('X-Admin-Secret') !== secret)) return json({ ok: false, error: 'unauthorized' }, 403);
+      const subs = (await this.ctx.storage.get('pushSubscriptions')) || [];
+      const next = subs.filter(x => x.endpoint !== body.endpoint);
+      await this.ctx.storage.put('pushSubscriptions', next);
+      return json({ ok: true, subscriptionCount: next.length });
+    }
+    if (path === 'test-alert' && request.method === 'POST') {
+      if (!secret || (body.secret !== secret && request.headers.get('X-Admin-Secret') !== secret)) return json({ ok: false, error: 'unauthorized' }, 403);
+      const res = await this.dispatchPendingAlerts({
+        title: '🔔 नेपाली लुडो — Test Admin Notification',
+        body: 'PWA Web Push र Email सूचना परीक्षण सफल भयो!',
+        tag: 'ludo-test-' + Date.now()
+      });
+      return json({ ok: true, ...res });
     }
 
     return json({ ok: false, error: 'not found' }, 404);
@@ -292,7 +858,8 @@ export class UserAccount {
       const user = {
         username, displayName, salt, passHash: await hashPassword(password, salt), token: rid(24),
         created: Date.now(), voiceUntil: 0, status: 'offline', lastSeen: Date.now(),
-        funTokens: cfg?.starterFunTokens ?? 100, dailyFunTokens: 0, dailyFunDate: '', coins: 0, level: 1, wins: 0, games: 0,
+        funTokens: cfg?.starterFunTokens ?? 100, dailyFunTokens: 0, dailyFunDate: '',
+        silverCoins: 0, goldCoins: 0, coins: 0, level: 1, wins: 0, games: 0,
         ownedSkins: ['default'], ownedAvatars: ['default'], ownedMics: ['mic_default'],
         equippedSkin: 'default', equippedAvatar: 'default', equippedMic: 'mic_default',
         roomDecor: [], roomDecorEquipped: [], friends: [], friendRequests: [],
@@ -323,6 +890,7 @@ export class UserAccount {
       if (!user) return json({ ok: false, error: 'User not found' }, 404);
       if (user.banned) return json({ ok: false, error: 'Banned' }, 403);
       if (await hashPassword(password, user.salt) !== user.passHash) return json({ ok: false, error: 'Wrong password' }, 401);
+      syncUserCoins(user);
       user.token = rid(24); user.lastSeen = Date.now();
       if (!user.active) {
         user.active = true;
@@ -341,12 +909,12 @@ export class UserAccount {
       return json({ ok: true, token: user.token, user: publicUser(user) });
     }
 
-    const user = await this.get();
+    const user = syncUserCoins(await this.get());
     const token = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '') || body.token || url.searchParams.get('token') || '';
     const authed = user && token && user.token === token;
     const internalOnly = new Set([
       'receive-voice-gift','economy','market-pay','market-credit','receive-item-gift','add-referral-reward','admin-fulfill',
-      'receive-friend-request','confirm-friend','unfriend-internal'
+      'receive-friend-request','confirm-friend','unfriend-internal','receive-currency'
     ]);
     if (internalOnly.has(path) && !isInternal(request, this.env)) return json({ ok: false, error: 'internal only' }, 403);
 
@@ -407,7 +975,10 @@ export class UserAccount {
       const today = new Date().toISOString().slice(0, 10);
       if (user.dailyLoginDate === today) return json({ ok: true, already: true, user: publicUser(user) });
       const cfg = await this.cfg();
-      const addFun = cfg?.dailyLoginFunTokens ?? 50;
+      const baseDaily = cfg?.dailyBaseFunTokens ?? cfg?.dailyLoginFunTokens ?? 30;
+      const perLv = cfg?.dailyPerLevelFunTokens ?? 20;
+      const lv = Math.max(1, Number(user.level) || 1);
+      const addFun = baseDaily + (lv - 1) * perLv;
       const addVoice = cfg?.dailyLoginVoiceMs || 0;
       const now = Date.now();
       user.dailyFunTokens = addFun;
@@ -458,53 +1029,148 @@ export class UserAccount {
       await this.put(user); return json({ ok: true, user: publicUser(user) });
     }
 
-    // Buy cosmetic with coins/fun (soft)
+    // Buy ANY item (skin | avatar | room | mic | voice) directly using Silver / Gold Coins
     if (path === 'buy-soft' && request.method === 'POST') {
       if (!authed) return json({ ok: false, error: 'auth' }, 401);
       const cfg = await this.cfg();
-      const kind = body.kind; // skin | avatar | room
+      const kind = body.kind; // skin | avatar | room | mic | voice
       const id = body.id;
       let item = null;
       if (kind === 'skin') item = (cfg?.skins || []).find(x => x.id === id);
       if (kind === 'avatar') item = (cfg?.avatars || []).find(x => x.id === id);
       if (kind === 'room') item = (cfg?.roomItems || []).find(x => x.id === id);
       if (kind === 'mic') item = (cfg?.mics || []).find(x => x.id === id);
+      if (kind === 'voice') item = (cfg?.voicePackages || []).find(x => x.id === id);
       if (!item) return json({ ok: false, error: 'item not found' }, 404);
       if ((user.level || 1) < (item.minLevel || 1)) return json({ ok: false, error: 'Level too low' }, 400);
-      const pc = item.priceCoins || 0, pf = item.priceFun || 0;
-      if ((user.coins || 0) < pc || (user.funTokens || 0) < pf) return json({ ok: false, error: 'Not enough coins/tokens' }, 400);
-      user.coins = (user.coins || 0) - pc;
+
+      let ps = Number(item.priceSilver !== undefined ? item.priceSilver : item.priceCoins) || 0;
+      let pg = Number(item.priceGold) || 0;
+      const pf = Number(item.priceFun) || 0;
+      // Optional payWith preference ('gold' or 'silver') when equivalent conversion applies
+      if (body.payWith === 'gold') {
+        pg = pg > 0 ? pg : Math.ceil(ps / 100);
+        ps = 0;
+      } else if (body.payWith === 'silver') {
+        ps = ps > 0 ? ps : pg * 100;
+        pg = 0;
+      }
+
+      if ((user.silverCoins || 0) < ps || (user.goldCoins || 0) < pg || (user.funTokens || 0) < pf) {
+        return json({ ok: false, error: 'पर्याप्त Coin / Token ब्यालेन्स छैन' }, 400);
+      }
+      user.silverCoins = (user.silverCoins || 0) - ps;
+      user.goldCoins = (user.goldCoins || 0) - pg;
+      user.coins = user.silverCoins;
       user.funTokens = (user.funTokens || 0) - pf;
+
       if (kind === 'skin') user.ownedSkins = Array.from(new Set([...(user.ownedSkins || []), id]));
       if (kind === 'avatar') user.ownedAvatars = Array.from(new Set([...(user.ownedAvatars || []), id]));
       if (kind === 'room') user.roomDecor = Array.from(new Set([...(user.roomDecor || []), id]));
       if (kind === 'mic') user.ownedMics = Array.from(new Set([...(user.ownedMics || ['mic_default']), id]));
+      if (kind === 'voice') user.voiceUntil = Math.max(user.voiceUntil || 0, Date.now()) + (Number(item.ms) || HOUR);
+
+      await this.put(user);
+      await this.pushPresence(user);
+      await this.pushDirectory(user);
+      return json({ ok: true, user: publicUser(user) });
+    }
+
+    // Buy +1 Level using 10 Gold Coins
+    if (path === 'buy-level' && request.method === 'POST') {
+      if (!authed) return json({ ok: false, error: 'auth' }, 401);
+      const cfg = await this.cfg();
+      const costGold = Number(cfg?.levelUpGoldCost) || 10;
+      if ((user.goldCoins || 0) < costGold) {
+        return json({ ok: false, error: `${costGold} Gold Coin आवश्यक छ (अहिले: ${user.goldCoins || 0})` }, 400);
+      }
+      user.goldCoins -= costGold;
+      user.level = (user.level || 1) + 1;
+      applyLevelReward(user, cfg);
+      await this.put(user);
+      await this.pushDirectory(user);
+      await this.pushPresence(user);
+      const baseDaily = cfg?.dailyBaseFunTokens ?? 30;
+      const perLv = cfg?.dailyPerLevelFunTokens ?? 20;
+      return json({
+        ok: true,
+        user: publicUser(user),
+        dailyRateNow: baseDaily + (user.level - 1) * perLv
+      });
+    }
+
+    // Convert currencies: 100 Fun <-> 1 Silver <-> 100 Silver = 1 Gold
+    if ((path === 'convert-fun' || path === 'convert-currency') && request.method === 'POST') {
+      if (!authed) return json({ ok: false, error: 'auth' }, 401);
+      const direction = String(body.direction || 'fun_to_silver');
+      const times = Math.min(1000, Math.max(1, Math.floor(Number(body.times) || 1)));
+      if (direction === 'fun_to_silver') {
+        const need = times * 100;
+        if ((user.funTokens || 0) < need) return json({ ok: false, error: 'पर्याप्त Fun Token छैन (१०० Fun = १ Silver)' }, 400);
+        user.funTokens -= need;
+        user.silverCoins = (user.silverCoins || 0) + times;
+      } else if (direction === 'silver_to_gold') {
+        const need = times * 100;
+        if ((user.silverCoins || 0) < need) return json({ ok: false, error: 'पर्याप्त Silver Coin छैन (१०० Silver = १ Gold)' }, 400);
+        user.silverCoins -= need;
+        user.goldCoins = (user.goldCoins || 0) + times;
+      } else if (direction === 'gold_to_silver') {
+        if ((user.goldCoins || 0) < times) return json({ ok: false, error: 'पर्याप्त Gold Coin छैन' }, 400);
+        user.goldCoins -= times;
+        user.silverCoins = (user.silverCoins || 0) + times * 100;
+      } else {
+        return json({ ok: false, error: 'Invalid conversion direction' }, 400);
+      }
+      user.coins = user.silverCoins;
       await this.put(user);
       return json({ ok: true, user: publicUser(user) });
     }
 
-    // Convert 100 fun → 1 coin manually
-    if (path === 'convert-fun' && request.method === 'POST') {
+    // Player-to-Player Currency Transfer / Exchange (Fun Token, Silver Coin, Gold Coin)
+    if (path === 'transfer-currency' && request.method === 'POST') {
       if (!authed) return json({ ok: false, error: 'auth' }, 401);
-      const times = Math.min(100, Math.floor(Number(body.times) || 1));
-      const need = times * 100;
-      if ((user.funTokens || 0) < need) return json({ ok: false, error: 'Need more fun tokens' }, 400);
-      user.funTokens -= need;
-      user.coins = (user.coins || 0) + times;
-      applyLevelUps(user);
-      // level rewards
-      const cfg = await this.cfg();
-      const lr = cfg?.levelRewards || {};
-      const reward = lr[String(user.level)];
-      if (reward && !user._lr || user._lr < user.level) {
-        user._lr = user.level;
-        if (reward.skinId) user.ownedSkins = Array.from(new Set([...(user.ownedSkins || []), reward.skinId]));
-        if (reward.avatarId) user.ownedAvatars = Array.from(new Set([...(user.ownedAvatars || []), reward.avatarId]));
-        if (reward.roomItem) user.roomDecor = Array.from(new Set([...(user.roomDecor || []), reward.roomItem]));
-        if (reward.funTokens) user.funTokens = (user.funTokens || 0) + reward.funTokens;
+      const to = String(body.to || '').trim().toLowerCase();
+      const currency = String(body.currency || '').trim().toLowerCase();
+      const amount = Math.floor(Number(body.amount) || 0);
+      if (!to || to === user.username) return json({ ok: false, error: 'मान्य साथी/प्रयोगकर्ता नाम राख्नुहोस्' }, 400);
+      if (!['fun', 'silver', 'gold'].includes(currency) || amount < 1 || amount > 1000000) {
+        return json({ ok: false, error: 'मान्य रकम र प्रकार (Fun/Silver/Gold) छान्नुहोस्' }, 400);
       }
+      if (currency === 'fun' && (user.funTokens || 0) < amount) return json({ ok: false, error: 'पर्याप्त स्थायी Fun Token छैन' }, 400);
+      if (currency === 'silver' && (user.silverCoins || 0) < amount) return json({ ok: false, error: 'पर्याप्त Silver Coin छैन' }, 400);
+      if (currency === 'gold' && (user.goldCoins || 0) < amount) return json({ ok: false, error: 'पर्याप्त Gold Coin छैन' }, 400);
+
+      if (currency === 'fun') user.funTokens -= amount;
+      if (currency === 'silver') { user.silverCoins -= amount; user.coins = user.silverCoins; }
+      if (currency === 'gold') user.goldCoins -= amount;
       await this.put(user);
+
+      const rr = await this.env.USERS.get(this.env.USERS.idFromName(to)).fetch(new Request('https://user/receive-currency', {
+        method: 'POST', headers: internalHeaders(this.env),
+        body: JSON.stringify({ from: user.username, currency, amount })
+      }));
+      const rj = await rr.json().catch(() => ({ ok: false, error: 'User not found' }));
+      if (!rr.ok || !rj.ok) {
+        if (currency === 'fun') user.funTokens += amount;
+        if (currency === 'silver') { user.silverCoins += amount; user.coins = user.silverCoins; }
+        if (currency === 'gold') user.goldCoins += amount;
+        await this.put(user);
+        return json({ ok: false, error: rj.error || 'Transfer failed' }, 400);
+      }
       return json({ ok: true, user: publicUser(user) });
+    }
+
+    if (path === 'receive-currency' && request.method === 'POST') {
+      if (!user) return json({ ok: false, error: 'प्रयोगकर्ता भेटिएन' }, 404);
+      if (user.banned) return json({ ok: false, error: 'Recipient banned' }, 403);
+      const currency = String(body.currency || '');
+      const amount = Math.floor(Number(body.amount) || 0);
+      if (amount <= 0) return json({ ok: false, error: 'invalid amount' }, 400);
+      if (currency === 'fun') user.funTokens = (user.funTokens || 0) + amount;
+      if (currency === 'silver') { user.silverCoins = (user.silverCoins || 0) + amount; user.coins = user.silverCoins; }
+      if (currency === 'gold') user.goldCoins = (user.goldCoins || 0) + amount;
+      await this.put(user);
+      return json({ ok: true });
     }
 
     // Internal economy adjusts from room
@@ -514,7 +1180,6 @@ export class UserAccount {
       const win = !!body.win;
       const today = new Date().toISOString().slice(0, 10);
       if (user.dailyFunDate !== today) { user.dailyFunTokens = 0; user.dailyFunDate = today; }
-      // spending (negative): use daily first, then permanent; winnings always permanent
       if (funDelta < 0) {
         let need = -funDelta;
         const available = (user.dailyFunTokens || 0) + (user.funTokens || 0);
@@ -525,28 +1190,26 @@ export class UserAccount {
         need -= fromDaily;
         if (need > 0) user.funTokens = (user.funTokens || 0) - need;
       } else if (funDelta > 0) {
-        user.funTokens = (user.funTokens || 0) + funDelta; // permanent winnings
+        user.funTokens = (user.funTokens || 0) + funDelta;
       }
       user.games = (user.games || 0) + (body.game ? 1 : 0);
       if (win) user.wins = (user.wins || 0) + 1;
-      // auto convert optional: every 100 fun → 1 coin on win path
-      if (body.autoConvert) {
-        const c = Math.floor((user.funTokens || 0) / 100);
-        if (c > 0) { user.funTokens -= c * 100; user.coins = (user.coins || 0) + c; applyLevelUps(user); }
-      }
       await this.put(user);
       return json({ ok: true, user: publicUser(user) });
     }
 
-    
     if (path === 'market-pay' && request.method === 'POST') {
       if (!user) return json({ ok: false, error: 'no user' }, 404);
       if (body.token !== user.token) return json({ ok: false, error: 'auth' }, 401);
-      const pf = Number(body.priceFun) || 0, pc = Number(body.priceCoins) || 0;
+      const pf = Number(body.priceFun) || 0;
+      const ps = Number(body.priceSilver !== undefined ? body.priceSilver : body.priceCoins) || 0;
+      const pg = Number(body.priceGold) || 0;
       const today = new Date().toISOString().slice(0, 10);
       if (user.dailyFunDate !== today) { user.dailyFunTokens = 0; user.dailyFunDate = today; }
       const totalFun = (user.dailyFunTokens || 0) + (user.funTokens || 0);
-      if (totalFun < pf || (user.coins || 0) < pc) return json({ ok: false, error: 'insufficient balance' }, 400);
+      if (totalFun < pf || (user.silverCoins || 0) < ps || (user.goldCoins || 0) < pg) {
+        return json({ ok: false, error: 'पर्याप्त Token / Silver / Gold ब्यालेन्स छैन' }, 400);
+      }
       const owned = body.itemType === 'skin' ? (user.ownedSkins || []) : body.itemType === 'avatar' ? (user.ownedAvatars || []) : body.itemType === 'mic' ? (user.ownedMics || []) : (user.roomDecor || []);
       if (owned.includes(body.itemId)) return json({ ok: false, error: 'You already own this item' }, 400);
       if (pf > 0) {
@@ -555,7 +1218,9 @@ export class UserAccount {
         const rem = pf - fromDaily;
         if (rem > 0) user.funTokens = (user.funTokens || 0) - rem;
       }
-      user.coins = (user.coins || 0) - pc;
+      user.silverCoins = (user.silverCoins || 0) - ps;
+      user.coins = user.silverCoins;
+      user.goldCoins = (user.goldCoins || 0) - pg;
       if (body.itemType === 'skin') user.ownedSkins = Array.from(new Set([...(user.ownedSkins || []), body.itemId]));
       if (body.itemType === 'avatar') user.ownedAvatars = Array.from(new Set([...(user.ownedAvatars || []), body.itemId]));
       if (body.itemType === 'mic') user.ownedMics = Array.from(new Set([...(user.ownedMics || []), body.itemId]));
@@ -564,7 +1229,7 @@ export class UserAccount {
       if (body.seller && body.seller !== 'admin') {
         await this.env.USERS.get(this.env.USERS.idFromName(body.seller)).fetch(new Request('https://user/market-credit', {
           method: 'POST', headers: internalHeaders(this.env),
-          body: JSON.stringify({ fun: pf, coins: pc, itemType: body.itemType, itemId: body.itemId })
+          body: JSON.stringify({ fun: pf, silver: ps, gold: pg, itemType: body.itemType, itemId: body.itemId })
         })).catch(() => null);
       }
       return json({ ok: true, user: publicUser(user) });
@@ -573,7 +1238,9 @@ export class UserAccount {
     if (path === 'market-credit' && request.method === 'POST') {
       if (!user) return json({ ok: false }, 404);
       user.funTokens = (user.funTokens || 0) + (Number(body.fun) || 0);
-      user.coins = (user.coins || 0) + (Number(body.coins) || 0);
+      user.silverCoins = (user.silverCoins || 0) + (Number(body.silver !== undefined ? body.silver : body.coins) || 0);
+      user.coins = user.silverCoins;
+      user.goldCoins = (user.goldCoins || 0) + (Number(body.gold) || 0);
       if (body.itemType === 'skin' && body.itemId && body.itemId !== 'default') {
         user.ownedSkins = (user.ownedSkins || []).filter(x => x !== body.itemId);
         if (user.equippedSkin === body.itemId) user.equippedSkin = 'default';
@@ -769,7 +1436,12 @@ export class UserAccount {
       if (!secret || (body.secret !== secret && request.headers.get('X-Admin-Secret') !== secret)) return json({ ok: false, error: 'unauthorized' }, 403);
       if (!user) return json({ ok: false, error: 'User not found' }, 404);
       if (Number.isFinite(Number(body.addFun))) user.funTokens = Math.max(0, (user.funTokens || 0) + Number(body.addFun));
-      if (Number.isFinite(Number(body.addCoins))) user.coins = Math.max(0, (user.coins || 0) + Number(body.addCoins));
+      const addSilv = body.addSilver !== undefined ? Number(body.addSilver) : Number(body.addCoins);
+      if (Number.isFinite(addSilv)) {
+        user.silverCoins = Math.max(0, (user.silverCoins || 0) + addSilv);
+        user.coins = user.silverCoins;
+      }
+      if (Number.isFinite(Number(body.addGold))) user.goldCoins = Math.max(0, (user.goldCoins || 0) + Number(body.addGold));
       if (Number.isFinite(Number(body.setLevel)) && Number(body.setLevel) >= 1) user.level = Math.floor(Number(body.setLevel));
       if (Number.isFinite(Number(body.voiceDays)) && Number(body.voiceDays) > 0) {
         user.voiceUntil = Math.max(user.voiceUntil || 0, Date.now()) + Math.floor(Number(body.voiceDays) * DAY);
@@ -796,8 +1468,12 @@ export class UserAccount {
       if (body.packageType === 'voice') {
         const pack = (cfg.voicePackages || []).find(p => p.id === body.packageId);
         if (pack) user.voiceUntil = Math.max(user.voiceUntil || 0, now) + pack.ms;
+      } else if (body.packageType === 'gold') {
+        const g = Math.max(0, Number(body.goldAmount) || 0);
+        user.goldCoins = (user.goldCoins || 0) + g;
       }
-      await this.put(user); return json({ ok: true, user: publicUser(user) });
+      await this.put(user); await this.pushDirectory(user); await this.pushPresence(user);
+      return json({ ok: true, user: publicUser(user) });
     }
     if (path === 'add-referral-reward' && request.method === 'POST') {
       if (!user) return json({ ok: false }, 404);
