@@ -1,0 +1,16 @@
+{
+  "name": "nepali-ludo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node server.js",
+    "build": "node --check server.js && node --check worker.js",
+    "start": "node server.js",
+    "lint": "node --check server.js && node --check worker.js"
+  },
+  "dependencies": {
+    "express": "^5.3.0",
+    "ws": "^8.23.0"
+  }
+}

@@ -77,29 +77,32 @@ export class ShopConfig {
         { id: 'v30d', label: '30 Days Voice', ms: 30 * DAY, priceNpr: 299 }
       ],
       skins: [
-        { id: 'default', label: 'Classic Board', priceCoins: 0, priceFun: 0, minLevel: 1 },
-        { id: 'gold', label: 'Golden Board', priceCoins: 20, priceFun: 0, minLevel: 2 },
-        { id: 'nepal', label: 'Nepal Theme', priceCoins: 30, priceFun: 0, minLevel: 3 },
-        { id: 'neon', label: 'Neon Room', priceCoins: 50, priceFun: 0, minLevel: 5 }
+        { id: 'default', label: 'Classic Durbar (परम्परागत)', priceCoins: 0, priceFun: 0, minLevel: 1 },
+        { id: 'gold', label: 'Dhaka Gold (ढाका र सुन)', priceCoins: 20, priceFun: 0, minLevel: 2 },
+        { id: 'nepal', label: 'Nepal Heritage (नेपाल विशेष)', priceCoins: 30, priceFun: 0, minLevel: 3 },
+        { id: 'neon', label: 'Tihar Glow (तिहार झिलिमिली)', priceCoins: 50, priceFun: 0, minLevel: 5 }
       ],
       avatars: [
-        { id: 'default', label: 'Default Avatar', priceCoins: 0, minLevel: 1 },
-        { id: 'hero', label: 'Hero Avatar', priceCoins: 15, minLevel: 2 },
-        { id: 'king', label: 'King Avatar', priceCoins: 40, minLevel: 4 }
+        { id: 'default', label: 'Default Avatar', priceCoins: 0, minLevel: 1, emoji: '🙂' },
+        { id: 'hero', label: 'Himalayan Hero (हिमाली नायक)', priceCoins: 15, minLevel: 2, imageUrl: '/assets/avatar_himal_hero.jpg' },
+        { id: 'king', label: 'Durbar Royal (दरबार राज)', priceCoins: 40, minLevel: 4, imageUrl: '/assets/avatar_durbar_royal.jpg' }
       ],
       mics: [
-        { id: 'mic_default', label: 'Default Mic', priceCoins: 0, minLevel: 1 },
-        { id: 'mic_gold', label: 'Gold Mic', priceCoins: 25, minLevel: 2 },
-        { id: 'mic_neon', label: 'Neon Mic', priceCoins: 40, minLevel: 4 }
+        { id: 'mic_default', label: 'Default Mic', priceCoins: 0, minLevel: 1, emoji: '🎤' },
+        { id: 'mic_gold', label: 'Gold Mic', priceCoins: 25, minLevel: 2, emoji: '🎙️' },
+        { id: 'mic_neon', label: 'Brass Mic', priceCoins: 40, minLevel: 4, emoji: '📯' }
       ],
       roomItems: [
-        { id: 'lamp', label: 'Room Lamp', priceCoins: 10, minLevel: 1 },
-        { id: 'trophy', label: 'Trophy Shelf', priceCoins: 25, minLevel: 3 },
-        { id: 'sofa', label: 'VIP Sofa', priceCoins: 35, minLevel: 4 }
+        { id: 'diyo', label: 'Tihar Diyo (दियो)', priceCoins: 8, minLevel: 1, emoji: '🪔' },
+        { id: 'lamp', label: 'Durbar Lamp', priceCoins: 10, minLevel: 1, emoji: '💡' },
+        { id: 'dhaka', label: 'Dhaka Topi (ढाका टोपी)', priceCoins: 15, minLevel: 2, emoji: '🧢' },
+        { id: 'sarangi', label: 'Sarangi (सारङ्गी)', priceCoins: 20, minLevel: 2, emoji: '🎻' },
+        { id: 'trophy', label: 'Trophy Shelf', priceCoins: 25, minLevel: 3, emoji: '🏆' },
+        { id: 'sofa', label: 'VIP Baithak', priceCoins: 35, minLevel: 4, emoji: '🛋️' }
       ],
       levelRewards: {
         '2': { skinId: 'gold', funTokens: 50 },
-        '3': { avatarId: 'hero', roomItem: 'lamp' },
+        '3': { avatarId: 'hero', roomItem: 'diyo' },
         '5': { skinId: 'neon', funTokens: 100 }
       },
       paymentMethods: [
@@ -630,7 +633,7 @@ export class UserAccount {
         body: JSON.stringify({
           username: user.username, displayName: user.displayName, status: user.status, lastSeen: user.lastSeen,
           voiceActive: !user.banned && (user.voiceUntil || 0) > Date.now(),
-          level: user.level || 1, equippedAvatar: user.equippedAvatar, avatarPhoto: user.avatarPhoto || '', rankScore: (user.level || 1) * 1000 + (user.wins || 0)
+          level: user.level || 1, wins: user.wins || 0, equippedAvatar: user.equippedAvatar, avatarPhoto: user.avatarPhoto || '', rankScore: (user.level || 1) * 1000 + (user.wins || 0)
         })
       }));
     } catch {}
@@ -662,11 +665,18 @@ export class Lobby {
       list[body.username] = {
         username: body.username, displayName: body.displayName, status: body.status || 'online',
         lastSeen: body.lastSeen || Date.now(), voiceActive: !!body.voiceActive,
-        level: body.level || 1, equippedAvatar: body.equippedAvatar || 'default', avatarPhoto: body.avatarPhoto || '', rankScore: body.rankScore || 0
+        level: body.level || 1, wins: body.wins || 0, equippedAvatar: body.equippedAvatar || 'default', avatarPhoto: body.avatarPhoto || '', rankScore: body.rankScore || 0
       };
       const now = Date.now();
       for (const k of Object.keys(list)) if (now - (list[k].lastSeen || 0) > 5 * 60 * 1000) delete list[k];
       await this.ctx.storage.put('online', list);
+      const lb = (await this.ctx.storage.get('leaderboard')) || {};
+      lb[body.username] = {
+        username: body.username, displayName: body.displayName, level: body.level || 1,
+        wins: body.wins || 0, equippedAvatar: body.equippedAvatar || 'default',
+        avatarPhoto: body.avatarPhoto || '', rankScore: body.rankScore || 0, updatedAt: now
+      };
+      await this.ctx.storage.put('leaderboard', lb);
       return json({ ok: true });
     }
 
@@ -676,6 +686,36 @@ export class Lobby {
       const out = Object.values(list).filter(u => now - (u.lastSeen || 0) <= 5 * 60 * 1000);
       out.sort((a, b) => (b.rankScore || 0) - (a.rankScore || 0));
       return json({ ok: true, users: out });
+    }
+
+    if (path === 'leaderboard') {
+      const lb = (await this.ctx.storage.get('leaderboard')) || {};
+      const out = Object.values(lb).sort((a, b) => (b.rankScore || 0) - (a.rankScore || 0)).slice(0, 30);
+      return json({ ok: true, players: out });
+    }
+
+    if (path === 'quick-match' && request.method === 'POST') {
+      const username = String(body.username || '').trim().toLowerCase();
+      if (!(await lobbyAuth(username))) return json({ ok: false, error: 'auth' }, 401);
+      const stake = Number.isSafeInteger(Number(body.stake)) ? Number(body.stake) : 0;
+      const mode = body.mode === 'quick' ? 'quick' : 'classic';
+      const maxPlayers = Number(body.maxPlayers) === 4 ? 4 : 2;
+      const qKey = `${mode}:${stake}:${maxPlayers}`;
+      const queues = (await this.ctx.storage.get('quick_queues')) || {};
+      const now = Date.now();
+      let entry = queues[qKey];
+      if (entry && now - entry.createdAt < 90_000 && entry.players.length < maxPlayers && !entry.players.includes(username)) {
+        entry.players.push(username);
+        await this.ctx.storage.put('quick_queues', queues);
+        return json({ ok: true, roomCode: entry.roomCode, create: false, stake, mode, playersCount: entry.players.length });
+      }
+      if (entry && entry.players.includes(username) && now - entry.createdAt < 90_000) {
+        return json({ ok: true, roomCode: entry.roomCode, create: entry.players[0] === username, stake, mode, playersCount: entry.players.length });
+      }
+      const roomCode = rid(3).toUpperCase().replace(/[^A-Z0-9]/g, 'A').slice(0, 6);
+      queues[qKey] = { roomCode, players: [username], createdAt: now };
+      await this.ctx.storage.put('quick_queues', queues);
+      return json({ ok: true, roomCode, create: true, stake, mode, playersCount: 1 });
     }
 
     // Play request → on accept create room code and return to both
@@ -800,6 +840,7 @@ export class LudoRoom {
     const name = (url.searchParams.get('name') || username).slice(0, 18);
     const token = url.searchParams.get('token') || '';
     const create = url.searchParams.get('create') === '1';
+    const mode = url.searchParams.get('mode') === 'quick' ? 'quick' : 'classic';
     const requestedStake = Number(url.searchParams.get('stake') || 0);
     const stake = Number.isSafeInteger(requestedStake) && requestedStake >= 0 ? requestedStake : -1;
     if (!username || !token) return new Response('auth required', { status: 401 });
@@ -823,7 +864,7 @@ export class LudoRoom {
       const cfgJson = await cfgRes.json().catch(() => ({}));
       const allowedStakes = cfgJson.config?.stakes || [0, 10, 20, 50, 100];
       if (!Array.isArray(allowedStakes) || !allowedStakes.includes(stake)) return new Response('Stake not allowed', { status: 400 });
-      room = { host: username, players: [], state: null, chat: [], stake, pot: 0, paid: false, locked: false, disconnects: {} };
+      room = { host: username, players: [], state: null, chat: [], stake, mode, pot: 0, paid: false, locked: false, disconnects: {} };
     }
 
     // locked after start
@@ -832,8 +873,9 @@ export class LudoRoom {
       if (room.locked || room.state) return new Response('Room locked (game in progress)', { status: 409 });
       if (room.players.length >= 4) return new Response('Room full', { status: 409 });
       if (room.stake > 0 && (userJson.user.funTokens || 0) < room.stake) return new Response('Not enough fun tokens', { status: 402 });
-      const seat = [0, 1, 2, 3].find(i => !room.players.some(p => p.seat === i));
-      player = { username, name, seat, tokens: [-1, -1, -1, -1], voiceActive, avatar, avatarPhoto, skin, equippedMic, roomDecorEquipped, connected: true };
+      // Seat order [0, 2, 1, 3] ensures 2-player matches sit diagonally opposite (Red vs Yellow)
+      const seat = [0, 2, 1, 3].find(i => !room.players.some(p => p.seat === i));
+      player = { username, name, seat, tokens: [-1, -1, -1, -1], voiceActive, avatar, avatarPhoto, skin, equippedMic, roomDecorEquipped, connected: true, isBot: false };
       room.players.push(player);
     } else {
       // reconnect
@@ -890,16 +932,51 @@ export class LudoRoom {
       return;
     }
 
+    if (data.type === 'emote') {
+      const text = String(data.text || '').trim().slice(0, 60);
+      const emoji = String(data.emoji || '').trim().slice(0, 8);
+      if (!text && !emoji) return;
+      this.broadcastRaw({ type: 'emote', username, seat: room.players[seat].seat, text, emoji });
+      return;
+    }
+
     if (data.type === 'mic-state') {
-      // broadcast who muted/unmuted for UI
       const packet = JSON.stringify({ type: 'mic-state', username, on: !!data.on });
       for (const peer of this.ctx.getWebSockets()) try { peer.send(packet); } catch {}
       return;
     }
 
+    if (data.type === 'add-bot') {
+      if (room.host !== username) return reply('Only host');
+      if (room.locked || room.state) return reply('Game already started');
+      if (room.players.length >= 4) return reply('Room full');
+      if (room.stake > 0) return reply('Bots only allowed in 0-stake rooms');
+      const botNames = ['सगरमाथा (Bot)', 'मकालु (Bot)', 'फेवा (Bot)', 'रारा (Bot)'];
+      const seatNum = [0, 2, 1, 3].find(i => !room.players.some(p => p.seat === i));
+      const botName = botNames[seatNum] || `Bot ${seatNum + 1}`;
+      room.players.push({
+        username: `bot_${seatNum}`, name: botName, seat: seatNum,
+        tokens: [-1, -1, -1, -1], voiceActive: false, avatar: 'hero',
+        avatarPhoto: '/assets/avatar_himal_hero.jpg', skin: 'nepal',
+        equippedMic: 'mic_default', roomDecorEquipped: ['diyo'], connected: true, isBot: true
+      });
+      await this.ctx.storage.put('room', room);
+      this.broadcast(room, `${botName} joined`);
+      return;
+    }
+
+    if (data.type === 'remove-bot') {
+      if (room.host !== username) return reply('Only host');
+      if (room.locked || room.state) return reply('Game already started');
+      const targetSeat = Number(data.seat);
+      room.players = room.players.filter(p => !(p.isBot && p.seat === targetSeat));
+      await this.ctx.storage.put('room', room);
+      this.broadcast(room, 'Bot removed');
+      return;
+    }
+
     if (data.type === 'leave') {
-      if (room.state && room.locked) {
-        // soft disconnect instead of remove
+      if (room.state && !room.state.finished && room.locked) {
         room.players[seat].connected = false;
         room.disconnects = room.disconnects || {};
         room.disconnects[username] = Date.now();
@@ -909,8 +986,11 @@ export class LudoRoom {
         return;
       }
       room.players = room.players.filter(p => p.username !== username);
-      if (room.host === username) room.host = room.players[0]?.username || null;
-      if (!room.players.length) { room.state = null; room.locked = false; room.paid = false; room.pot = 0; }
+      if (room.host === username) {
+        const nextHost = room.players.find(p => !p.isBot);
+        room.host = nextHost?.username || null;
+      }
+      if (!room.players.some(p => !p.isBot)) { room.players = []; room.state = null; room.locked = false; room.paid = false; room.pot = 0; }
       await this.ctx.storage.put('room', room);
       this.broadcast(room, 'Player left');
       this.broadcastRaw({ type: 'peer-left', username });
@@ -918,10 +998,9 @@ export class LudoRoom {
     }
 
     if (data.type === 'vote-continue') {
-      // after 60s disconnect, remaining players vote to drop disconnected seats and continue
       room.votes = room.votes || {};
       room.votes[username] = true;
-      const connected = room.players.filter(p => p.connected !== false);
+      const connected = room.players.filter(p => p.connected !== false && !p.isBot);
       const need = Math.ceil(connected.length * 0.5);
       const yes = Object.keys(room.votes).filter(u => room.votes[u] && connected.some(p => p.username === u)).length;
       if (yes >= need) {
@@ -930,8 +1009,6 @@ export class LudoRoom {
           if (p.connected === false && room.disconnects?.[p.username] && now - room.disconnects[p.username] >= RECONNECT_MS) return false;
           return true;
         });
-        // reindex seats
-        room.players.forEach((p, i) => p.seat = i);
         if (room.state && room.state.turn >= room.players.length) room.state.turn = 0;
         room.votes = {};
         await this.ctx.storage.put('room', room);
@@ -943,20 +1020,22 @@ export class LudoRoom {
       return;
     }
 
+    let lastEvent = null;
+
     if (data.type === 'start' || data.type === 'rematch') {
       if (room.host !== username) return reply('Only host');
       if (room.players.length < 2) return reply('Need 2+ players');
-      // collect stake
+      if (data.mode === 'classic' || data.mode === 'quick') room.mode = data.mode;
       if (room.stake > 0 && !room.paid) {
         const charged = [];
         for (const p of room.players) {
+          if (p.isBot) continue;
           const res = await this.env.USERS.get(this.env.USERS.idFromName(p.username)).fetch(new Request('https://user/economy', {
             method: 'POST', headers: internalHeaders(this.env),
             body: JSON.stringify({ funDelta: -room.stake, game: false })
           }));
           const j = await res.json().catch(() => ({}));
           if (!res.ok || !j.ok) {
-            // Refund every player already charged; do not start a partially-funded game.
             for (const chargedUser of charged) {
               await this.env.USERS.get(this.env.USERS.idFromName(chargedUser)).fetch(new Request('https://user/economy', {
                 method: 'POST', headers: internalHeaders(this.env),
@@ -967,7 +1046,7 @@ export class LudoRoom {
           }
           charged.push(p.username);
         }
-        room.pot = room.stake * room.players.length;
+        room.pot = room.stake * charged.length;
         room.paid = true;
       } else if (!room.paid) { room.pot = 0; room.paid = true; }
 
@@ -977,18 +1056,12 @@ export class LudoRoom {
       room.locked = true;
       room.disconnects = {};
       room.votes = {};
+      lastEvent = { kind: 'start' };
     } else if (data.type === 'roll') {
       const s = room.state;
       if (!s || s.finished || s.turn !== seat || s.rolled) return reply('Not your roll');
       if (room.players[seat].connected === false) return reply('Disconnected');
-      const d = 1 + Math.floor(Math.random() * 6);
-      s.streak = d === 6 ? (s.streak || 0) + 1 : 0;
-      if (s.streak >= 3) { s.streak = 0; s.dice = 0; s.rolled = false; s.turn = (s.turn + 1) % room.players.length; }
-      else {
-        s.dice = d; s.rolled = true;
-        const can = room.players[seat].tokens.some(p => p < 0 ? d === 6 : (p < 58 && p + d <= 58));
-        if (!can) { s.rolled = false; if (d !== 6) s.turn = (s.turn + 1) % room.players.length; else s.dice = 0; }
-      }
+      lastEvent = this.applyRoll(room, seat);
     } else if (data.type === 'move') {
       const s = room.state;
       if (!s || s.finished || s.turn !== seat || !s.rolled) return reply('Not your move');
@@ -996,53 +1069,152 @@ export class LudoRoom {
       if (!Number.isInteger(i) || i < 0 || i > 3) return reply('Bad token');
       const p = room.players[seat].tokens[i], d = s.dice;
       if (p < 0 && d !== 6) return reply('Need a 6 to bring a token out');
-      if (p >= 0 && (p === 58 || p + d > 58)) return reply('Cannot move');
-      const next = p < 0 ? 0 : p + d;
-      room.players[seat].tokens[i] = next;
-      let captured = false;
-      if (next <= 51) {
-        const idx = (seat * 13 + next) % 52;
-        const safeSquares = [0, 8, 13, 21, 26, 34, 39, 47];
-        if (!safeSquares.includes(idx)) {
-          for (let j = 0; j < room.players.length; j++) {
-            if (j === seat) continue;
-            const opponents = room.players[j].tokens
-              .map((q, qi) => ({ q, qi }))
-              .filter(x => x.q >= 0 && x.q <= 51 && (room.players[j].seat * 13 + x.q) % 52 === idx);
-            // A pair of tokens forms a block and cannot be captured.
-            if (opponents.length === 1) {
-              room.players[j].tokens[opponents[0].qi] = -1;
-              captured = true;
-            }
-          }
-        }
-      }
-      if (room.players[seat].tokens.every(x => x === 58)) {
-        s.finished = true; s.winner = seat; s.rolled = false; s.dice = 0; room.locked = false;
-        // pay pot
-        if (room.paid && room.pot > 0) {
-          const w = room.players[seat].username;
-          await this.env.USERS.get(this.env.USERS.idFromName(w)).fetch(new Request('https://user/economy', {
-            method: 'POST', headers: internalHeaders(this.env),
-            body: JSON.stringify({ funDelta: room.pot, win: true, game: true, autoConvert: true })
-          }));
-          for (const p of room.players) {
-            if (p.username === w) continue;
-            await this.env.USERS.get(this.env.USERS.idFromName(p.username)).fetch(new Request('https://user/economy', {
-              method: 'POST', headers: internalHeaders(this.env),
-              body: JSON.stringify({ funDelta: 0, win: false, game: true })
-            }));
-          }
-          room.lastPot = room.pot; room.pot = 0; room.paid = false;
-        }
-      } else {
-        s.rolled = false; s.dice = 0;
-        if (!captured && next !== 58 && d !== 6) s.turn = (s.turn + 1) % room.players.length;
-      }
+      if (p >= 0 && (p === 56 || p + d > 56)) return reply('Cannot move');
+      lastEvent = await this.applyMove(room, seat, i);
     } else return reply('Unknown');
 
     await this.ctx.storage.put('room', room);
-    this.broadcast(room, room.state?.finished ? `Winner: ${room.players[room.state.winner]?.name || ''} (+${room.lastPot || 0} fun)` : 'Update');
+    const msgText = room.state?.finished
+      ? `Winner: ${room.players[room.state.winner]?.name || ''}${room.lastPot ? ` (+${room.lastPot} fun)` : ''}`
+      : (lastEvent?.kind === 'foul' ? 'Three 6s! Turn forfeited' : 'Update');
+    this.broadcast(room, msgText, null, lastEvent);
+    this.scheduleBotIfNeeded(room);
+  }
+
+  applyRoll(room, seatIdx) {
+    const s = room.state;
+    const pl = room.players[seatIdx];
+    const d = 1 + Math.floor(Math.random() * 6);
+    s.streak = d === 6 ? (s.streak || 0) + 1 : 0;
+    if (s.streak >= 3) {
+      s.streak = 0; s.dice = 0; s.rolled = false;
+      s.turn = (s.turn + 1) % room.players.length;
+      return { kind: 'foul', seat: pl.seat, dice: d };
+    }
+    s.dice = d; s.rolled = true;
+    const can = pl.tokens.some(p => p < 0 ? d === 6 : (p < 56 && p + d <= 56));
+    if (!can) {
+      s.rolled = false;
+      if (d !== 6) s.turn = (s.turn + 1) % room.players.length;
+      else s.dice = 0;
+      return { kind: 'pass', seat: pl.seat, dice: d };
+    }
+    return { kind: 'roll', seat: pl.seat, dice: d };
+  }
+
+  async applyMove(room, seatIdx, tokenIdx) {
+    const s = room.state;
+    const pl = room.players[seatIdx];
+    const p = pl.tokens[tokenIdx], d = s.dice;
+    const next = p < 0 ? 0 : p + d;
+    pl.tokens[tokenIdx] = next;
+    let captured = false;
+    let capturedInfo = null;
+    if (next <= 50) {
+      const idx = (pl.seat * 13 + next) % 52;
+      const safeSquares = [0, 8, 13, 21, 26, 34, 39, 47];
+      if (!safeSquares.includes(idx)) {
+        for (let j = 0; j < room.players.length; j++) {
+          if (j === seatIdx) continue;
+          const opp = room.players[j];
+          const opponents = opp.tokens
+            .map((q, qi) => ({ q, qi }))
+            .filter(x => x.q >= 0 && x.q <= 50 && (opp.seat * 13 + x.q) % 52 === idx);
+          if (opponents.length === 1) {
+            opp.tokens[opponents[0].qi] = -1;
+            captured = true;
+            capturedInfo = { seat: opp.seat, token: opponents[0].qi };
+          }
+        }
+      }
+    }
+    const winNeeded = room.mode === 'quick' ? 1 : 4;
+    const homeCount = pl.tokens.filter(x => x === 56).length;
+    if (homeCount >= winNeeded) {
+      s.finished = true; s.winner = seatIdx; s.rolled = false; s.dice = 0; room.locked = false;
+      const winBonus = room.paid && room.pot > 0 ? room.pot : 10;
+      if (!pl.isBot) {
+        await this.env.USERS.get(this.env.USERS.idFromName(pl.username)).fetch(new Request('https://user/economy', {
+          method: 'POST', headers: internalHeaders(this.env),
+          body: JSON.stringify({ funDelta: winBonus, win: true, game: true, autoConvert: true })
+        })).catch(() => null);
+      }
+      for (const other of room.players) {
+        if (other.username === pl.username || other.isBot) continue;
+        await this.env.USERS.get(this.env.USERS.idFromName(other.username)).fetch(new Request('https://user/economy', {
+          method: 'POST', headers: internalHeaders(this.env),
+          body: JSON.stringify({ funDelta: 0, win: false, game: true })
+        })).catch(() => null);
+      }
+      room.lastPot = room.paid && room.pot > 0 ? room.pot : winBonus;
+      room.pot = 0; room.paid = false;
+      return { kind: 'win', seat: pl.seat, token: tokenIdx, from: p, to: next, dice: d, captured: capturedInfo, home: next === 56 };
+    }
+    s.rolled = false; s.dice = 0;
+    if (!captured && next !== 56 && d !== 6) s.turn = (s.turn + 1) % room.players.length;
+    return { kind: 'move', seat: pl.seat, token: tokenIdx, from: p, to: next, dice: d, captured: capturedInfo, home: next === 56 };
+  }
+
+  pickBotMove(room, seatIdx) {
+    const pl = room.players[seatIdx];
+    const d = room.state.dice;
+    const legal = pl.tokens.map((p, i) => (p < 0 ? (d === 6 ? i : -1) : (p < 56 && p + d <= 56 ? i : -1))).filter(i => i >= 0);
+    if (!legal.length) return -1;
+    const safeSquares = [0, 8, 13, 21, 26, 34, 39, 47];
+    let best = legal[0], bestScore = -999;
+    for (const ti of legal) {
+      const p = pl.tokens[ti];
+      const next = p < 0 ? 0 : p + d;
+      let score = next;
+      if (next === 56) score += 500;
+      if (p < 0 && d === 6) score += 160;
+      if (next <= 50) {
+        const gIdx = (pl.seat * 13 + next) % 52;
+        if (safeSquares.includes(gIdx)) score += 90;
+        else {
+          for (let j = 0; j < room.players.length; j++) {
+            if (j === seatIdx) continue;
+            const opp = room.players[j];
+            const hits = opp.tokens.filter(q => q >= 0 && q <= 50 && (opp.seat * 13 + q) % 52 === gIdx);
+            if (hits.length === 1) score += 320;
+          }
+        }
+      }
+      if (next > 50 && p <= 50) score += 120;
+      if (score > bestScore) { bestScore = score; best = ti; }
+    }
+    return best;
+  }
+
+  scheduleBotIfNeeded(room) {
+    const s = room?.state;
+    if (!s || s.finished) return;
+    const cur = room.players[s.turn];
+    if (!cur || !cur.isBot) return;
+    setTimeout(async () => {
+      try {
+        const latest = await this.ctx.storage.get('room');
+        if (!latest?.state || latest.state.finished) return;
+        const turnIdx = latest.state.turn;
+        const bot = latest.players[turnIdx];
+        if (!bot || !bot.isBot) return;
+        if (!latest.state.rolled) {
+          const ev = this.applyRoll(latest, turnIdx);
+          await this.ctx.storage.put('room', latest);
+          this.broadcast(latest, ev.kind === 'foul' ? 'Three 6s! Turn forfeited' : 'Update', null, ev);
+          if (latest.state.rolled) this.scheduleBotIfNeeded(latest);
+          else if (latest.players[latest.state.turn]?.isBot) this.scheduleBotIfNeeded(latest);
+          return;
+        }
+        const ti = this.pickBotMove(latest, turnIdx);
+        if (ti >= 0) {
+          const ev = await this.applyMove(latest, turnIdx, ti);
+          await this.ctx.storage.put('room', latest);
+          this.broadcast(latest, latest.state.finished ? `Winner: ${bot.name}` : 'Update', null, ev);
+          this.scheduleBotIfNeeded(latest);
+        }
+      } catch {}
+    }, 650);
   }
 
   async webSocketClose(ws) {
@@ -1062,8 +1234,8 @@ export class LudoRoom {
   }
   async webSocketError() {}
 
-  broadcast(room, message, exclude = null) {
-    const packet = JSON.stringify({ type: 'state', room: pubRoom(room), message });
+  broadcast(room, message, exclude = null, lastEvent = null) {
+    const packet = JSON.stringify({ type: 'state', room: pubRoom(room), message, lastEvent });
     for (const peer of this.ctx.getWebSockets()) {
       try {
         const a = peer.deserializeAttachment() || {};
@@ -1081,7 +1253,7 @@ export class LudoRoom {
 function pubRoom(room) {
   return {
     host: room.host, players: room.players, state: room.state, chat: (room.chat || []).slice(-30),
-    stake: room.stake || 0, pot: room.pot || 0, locked: !!room.locked, lastPot: room.lastPot || 0,
+    stake: room.stake || 0, mode: room.mode || 'classic', pot: room.pot || 0, locked: !!room.locked, lastPot: room.lastPot || 0,
     disconnects: room.disconnects || {}
   };
 }
